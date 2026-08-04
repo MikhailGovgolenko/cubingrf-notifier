@@ -2,9 +2,8 @@ from aiogram import Bot, Dispatcher
 from aiogram.types import Message
 from aiogram.filters import Command
 from ..config import settings
-from ..database import session as db_session
 from ..database.session import AsyncSessionLocal
-from ..database.repository import Repository
+from ..database.repository import UserRepository, CompetitionRepository
 
 bot = Bot(token=settings.telegram_token) if settings.telegram_token else None
 dp = Dispatcher()
@@ -16,8 +15,8 @@ async def cmd_start(message: Message):
         await message.answer("Bot token not configured")
         return
     async with AsyncSessionLocal() as sess:
-        repo = Repository(sess)
-        user = await repo.add_user_if_not_exists(message.from_user.id)
+        user_repo = UserRepository(sess)
+        await user_repo.create_user(message.from_user.id)
         await sess.commit()
     await message.answer("Вы успешно подписаны на уведомления")
 
@@ -28,12 +27,13 @@ async def cmd_help(message: Message):
 @dp.message(Command("competitions"))
 async def cmd_competitions(message: Message):
     async with AsyncSessionLocal() as sess:
-        repo = Repository(sess)
-        comps = await repo.get_upcoming_competitions()
+        comp_repo = CompetitionRepository(sess)
+        comps = await comp_repo.get_latest_competitions()
     if not comps:
         await message.answer("Пока нет найденных соревнований")
         return
     text = "Ближайшие соревнования:\n\n"
     for c in comps:
-        text += f"{c.name} — {c.date or '-'} — {c.location or '-'}\n{c.url or ''}\n\n"
+        date_str = c.date.isoformat() if c.date else '-'
+        text += f"{c.name} — {date_str} — {c.location or '-'}\n{c.url or ''}\n\n"
     await message.answer(text)

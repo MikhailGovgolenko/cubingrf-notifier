@@ -3,7 +3,8 @@ import logging
 from .config import settings
 from .scrapers.cubingrf_html import CubingRFHtmlScraper
 from .competitions.service import CompetitionService
-from .database.session import AsyncSessionLocal, engine
+from .database.session import AsyncSessionLocal
+from .database.repository import UserRepository, NotificationRepository
 from .scheduler.jobs import create_scheduler, run_scheduler
 from .notifications.telegram import TelegramNotifier
 from .bot.bot import dp, bot
@@ -22,14 +23,15 @@ async def check_and_notify():
             return
         notifier = TelegramNotifier()
         # get users
-        from .database.repository import Repository
-        repo = Repository(sess)
-        users = await repo.get_subscribed_users()
+        user_repo = UserRepository(sess)
+        notif_repo = NotificationRepository(sess)
+        users = await user_repo.list_users()
         for comp in new:
             for u in users:
                 try:
                     await notifier.send_competition(u.telegram_id, comp.__dict__)
-                    await repo.add_notification(u.id, 0)
+                    # comp has no DB id here in service; in future consider returning persisted objects
+                    await notif_repo.mark_sent(u.id, 0)
                 except Exception:
                     logger.exception("Failed to notify user %s", u.telegram_id)
         await sess.commit()
@@ -44,7 +46,6 @@ async def main():
     loop.create_task(run_scheduler(scheduler))
     # Start aiogram polling
     try:
-        from aiogram import Dispatcher
         await dp.start_polling()
     finally:
         await bot.session.close()
