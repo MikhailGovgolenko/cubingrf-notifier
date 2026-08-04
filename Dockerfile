@@ -8,6 +8,12 @@ WORKDIR /app
 COPY pyproject.toml ./
 COPY src ./src
 
+COPY alembic.ini ./
+COPY alembic ./alembic
+COPY entrypoint.sh ./
+
 RUN pip install --upgrade pip && pip install -e .
 
-CMD ["python", "-m", "cubingrf_notifier.main"]
+RUN chmod +x /app/entrypoint.sh
+
+ENTRYPOINT ["/app/entrypoint.sh"]
