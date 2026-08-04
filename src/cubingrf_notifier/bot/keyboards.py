@@ -6,7 +6,7 @@ from ..competitions.disciplines import DISCIPLINES
 
 
 class MenuCB(CallbackData, prefix="menu"):
-    """Main menu actions: status, settings, notifications, competitions, back."""
+    """Main menu actions: settings, competitions, back."""
 
     action: str
 
@@ -46,7 +46,6 @@ def main_menu_keyboard() -> InlineKeyboardMarkup:
     kb = InlineKeyboardBuilder()
     kb.row(_btn("📅 Соревнования", MenuCB(action="competitions")))
     kb.row(_btn("⚙️ Настройки", MenuCB(action="settings")))
-    kb.row(_btn("ℹ️ Статус", MenuCB(action="status")))
     return kb.as_markup()
 
 
@@ -66,13 +65,6 @@ def notification_toggle_keyboard(enabled: bool) -> InlineKeyboardMarkup:
     action = "Выключить" if enabled else "Включить"
     kb.row(_btn(action, NotificationCB(action="toggle")))
     kb.row(_btn("◀️ Назад", SettingsCB(action="back")))
-    return kb.as_markup()
-
-
-def back_keyboard() -> InlineKeyboardMarkup:
-    """Generic back-to-main-menu button."""
-    kb = InlineKeyboardBuilder()
-    kb.row(_btn("◀️ Назад", MenuCB(action="back")))
     return kb.as_markup()
 
 

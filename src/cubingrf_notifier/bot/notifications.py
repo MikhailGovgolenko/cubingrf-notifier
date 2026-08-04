@@ -7,9 +7,9 @@ from ..database.session import AsyncSessionLocal
 from ..database.repository import UserRepository
 from .keyboards import (
     notification_toggle_keyboard,
-    settings_keyboard,
     NotificationCB,
 )
+from .user_status import show_settings_screen
 
 logger = logging.getLogger(__name__)
 
@@ -57,5 +57,5 @@ async def cb_toggle(callback: CallbackQuery):
 
 @router.callback_query(NotificationCB.filter(F.action == "back"))
 async def cb_notif_back(callback: CallbackQuery):
-    await callback.message.edit_text("⚙️ Настройки", reply_markup=settings_keyboard())
+    await show_settings_screen(callback)
     await callback.answer()

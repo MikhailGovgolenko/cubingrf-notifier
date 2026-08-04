@@ -8,10 +8,10 @@ from ..database.repository import UserRepository
 from ..competitions.disciplines import discipline_label, ALL_DISCIPLINE_CODES
 from .keyboards import (
     disciplines_keyboard,
-    settings_keyboard,
     SettingsCB,
     DisciplineCB,
 )
+from .user_status import show_settings_screen
 
 logger = logging.getLogger(__name__)
 
@@ -83,5 +83,5 @@ async def cb_clear(callback: CallbackQuery):
 
 @router.callback_query(DisciplineCB.filter(F.action == "back"))
 async def cb_disciplines_back(callback: CallbackQuery):
-    await callback.message.edit_text("⚙️ Настройки", reply_markup=settings_keyboard())
+    await show_settings_screen(callback)
     await callback.answer()
