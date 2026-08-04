@@ -1,11 +1,13 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from datetime import datetime
 from typing import List, Optional
+
 
 @dataclass
 class CompetitionDTO:
     external_id: str
     name: str
-    location: Optional[str]
-    date: Optional[str]
-    url: Optional[str]
-    disciplines: List[str]
+    location: Optional[str] = None
+    date: Optional[datetime] = None
+    url: Optional[str] = None
+    disciplines: List[str] = field(default_factory=list)

@@ -8,6 +8,8 @@ from sqlalchemy import (
     ForeignKey,
     JSON,
     BigInteger,
+    UniqueConstraint,
+    Boolean,
 )
 from sqlalchemy.orm import relationship, declarative_base
 from sqlalchemy.sql import func
@@ -15,9 +17,15 @@ from sqlalchemy.sql import func
 Base = declarative_base()
 
 class User(Base):
+    """A Telegram user subscribed to notifications.
+
+    ``notifications_enabled`` acts as the master on/off switch and is a
+    foundation for future per-user preferences (region, disciplines, time).
+    """
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
     telegram_id = Column(BigInteger, unique=True, nullable=False)
+    notifications_enabled = Column(Boolean, nullable=False, default=True, server_default="true")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
@@ -37,6 +45,10 @@ class Competition(Base):
 
 class Notification(Base):
     __tablename__ = "notifications"
+    __table_args__ = (
+        # A user should never receive the same competition twice.
+        UniqueConstraint("user_id", "competition_id", name="uq_notification_user_competition"),
+    )
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     competition_id = Column(Integer, ForeignKey("competitions.id"), nullable=False)

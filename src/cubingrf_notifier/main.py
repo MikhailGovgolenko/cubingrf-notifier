@@ -60,7 +60,7 @@ async def check_and_notify():
         notif_repo = NotificationRepository(sess)
 
 
-        users = await user_repo.list_users()
+        users = await user_repo.list_enabled_users()
 
 
         for comp in new:
@@ -71,13 +71,13 @@ async def check_and_notify():
 
                     await notifier.send_competition(
                         user.telegram_id,
-                        comp.__dict__
+                        comp
                     )
 
 
                     await notif_repo.mark_sent(
                         user.id,
-                        0
+                        comp.id
                     )
 
 
