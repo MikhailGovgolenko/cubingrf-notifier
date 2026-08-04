@@ -4,23 +4,29 @@ version = "0.1.0"
 description = "Telegram notifier for CubingRF competitions"
 requires-python = ">=3.13"
 
-[project.dependencies]
-python = "*"
-aiogram = "^3.0"
-httpx = "^0.24"
-selectolax = "^0.6"
-SQLAlchemy = {version = "^2.0", extras = ["asyncio"]}
-asyncpg = "^0.28"
-alembic = "^1.11"
-pydantic = "^2.6"
-pydantic-settings = "^2.0"
-APScheduler = "^3.10"
-uv = "*"
-pytest = {version = "^7.0", optional = true}
+dependencies = [
+    "aiogram>=3.0",
+    "httpx>=0.24",
+    "selectolax>=0.4.11",
+    "sqlalchemy[asyncio]>=2.0",
+    "asyncpg>=0.28",
+    "alembic>=1.11",
+    "pydantic>=2.6",
+    "pydantic-settings>=2.0",
+    "apscheduler>=3.10",
+]
+
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+]
+
 
 [tool.pytest.ini_options]
 minversion = "7.0"
 addopts = "-ra"
+
 
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]

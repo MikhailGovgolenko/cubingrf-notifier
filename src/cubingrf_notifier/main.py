@@ -38,15 +38,21 @@ async def check_and_notify():
         await notifier.close()
 
 async def main():
-    # create scheduler
-    scheduler = create_scheduler(check_and_notify, settings.poll_interval)
-    # run scheduler and bot
-    loop = asyncio.get_event_loop()
-    # Start scheduler in background task
+    if bot is None:
+        raise RuntimeError(
+            "Telegram bot token is not configured. Set TELEGRAM_TOKEN in .env"
+        )
+
+    scheduler = create_scheduler(
+        check_and_notify,
+        settings.poll_interval
+    )
+
+    loop = asyncio.get_running_loop()
     loop.create_task(run_scheduler(scheduler))
-    # Start aiogram polling
+
     try:
-        await dp.start_polling()
+        await dp.start_polling(bot)
     finally:
         await bot.session.close()
 

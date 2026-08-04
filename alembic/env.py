@@ -7,16 +7,17 @@ from alembic import context
 
 import os
 import sys
-sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-# Ensure package path points to project root
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+sys.path.insert(
+    0,
+    os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'src'))
+)
 
 config = context.config
 fileConfig(config.config_file_name)
 
-# Import settings and metadata
-from src.cubingrf_notifier.config import settings
-from src.cubingrf_notifier.database.models import Base
+from cubingrf_notifier.config import settings
+from cubingrf_notifier.database.models import Base
 
 target_metadata = Base.metadata
 
