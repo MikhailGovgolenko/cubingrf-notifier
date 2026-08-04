@@ -71,15 +71,27 @@ class CompetitionRepository:
         res = await self.session.execute(q)
         return res.scalar_one() > 0
 
-    async def get_upcoming_competitions(self, limit: int = 10) -> List[Competition]:
-        """Soonest competitions first; those without a known date go last."""
+    async def get_upcoming_competitions(self, offset: int = 0, limit: int = 10) -> List[Competition]:
+        """Soonest future competitions first (only dates from today onwards)."""
         q = (
             select(Competition)
-            .order_by(Competition.date.asc().nulls_last())
+            .where(Competition.date >= func.current_date())
+            .order_by(Competition.date.asc())
+            .offset(offset)
             .limit(limit)
         )
         res = await self.session.execute(q)
-        return res.scalars().all()
+        return list(res.scalars().all())
+
+    async def count_upcoming_competitions(self) -> int:
+        """Total number of future competitions (for pagination)."""
+        q = (
+            select(func.count())
+            .select_from(Competition)
+            .where(Competition.date >= func.current_date())
+        )
+        res = await self.session.execute(q)
+        return int(res.scalar_one())
 
 
 class NotificationRepository:
