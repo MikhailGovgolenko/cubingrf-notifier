@@ -1,13 +1,16 @@
 from typing import Optional, List
 import logging
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete, or_
 from sqlalchemy.exc import IntegrityError
 
-from .models import Competition, User, Notification
+from .models import Competition, User, Notification, UserDiscipline
 from ..competitions.models import CompetitionDTO
 
 logger = logging.getLogger(__name__)
+
+# Registration statuses that make a competition available to users.
+OPEN_REG_STATUSES = ("open", "scheduled")
 
 
 class UserRepository:
@@ -43,6 +46,29 @@ class UserRepository:
         res = await self.session.execute(q)
         return res.scalars().all()
 
+    async def get_user_disciplines(self, telegram_id: int) -> List[str]:
+        """Discipline codes the user selected (empty if none/not registered)."""
+        user = await self.get_user_by_telegram_id(telegram_id)
+        if user is None:
+            return []
+        q = (
+            select(UserDiscipline.discipline_code)
+            .where(UserDiscipline.user_id == user.id)
+            .order_by(UserDiscipline.discipline_code)
+        )
+        res = await self.session.execute(q)
+        return list(res.scalars().all())
+
+    async def set_user_disciplines(self, telegram_id: int, codes: List[str]) -> None:
+        """Replace the user's discipline selection with the given codes."""
+        user = await self.get_user_by_telegram_id(telegram_id)
+        if user is None:
+            user = await self.create_user(telegram_id)
+        await self.session.execute(delete(UserDiscipline).where(UserDiscipline.user_id == user.id))
+        for code in codes:
+            self.session.add(UserDiscipline(user_id=user.id, discipline_code=code))
+        await self.session.flush()
+
 
 class CompetitionRepository:
     def __init__(self, session: AsyncSession):
@@ -61,37 +87,43 @@ class CompetitionRepository:
             date=dto.date,
             url=dto.url,
             disciplines=dto.disciplines or [],
+            reg_status=dto.reg_status,
         )
         self.session.add(comp)
         await self.session.flush()
         return comp
+
+    async def get_by_external_id(self, external_id: str) -> Optional[Competition]:
+        """Find a competition by its site-specific id, or None."""
+        q = select(Competition).where(Competition.external_id == external_id)
+        res = await self.session.execute(q)
+        return res.scalar_one_or_none()
 
     async def exists_by_external_id(self, external_id: str) -> bool:
         q = select(func.count()).select_from(Competition).where(Competition.external_id == external_id)
         res = await self.session.execute(q)
         return res.scalar_one() > 0
 
-    async def get_upcoming_competitions(self, offset: int = 0, limit: int = 10) -> List[Competition]:
-        """Soonest future competitions first (only dates from today onwards)."""
+    async def list_upcoming_competitions(self) -> List[Competition]:
+        """All future competitions with registration open or upcoming.
+
+        Only future dates (from today onwards) where registration is NOT
+        closed. Unknown status (NULL) is kept as a safe fallback so the list
+        does not empty out if the site markup changes.
+        """
         q = (
             select(Competition)
-            .where(Competition.date >= func.current_date())
+            .where(
+                Competition.date >= func.current_date(),
+                or_(
+                    Competition.reg_status.is_(None),
+                    Competition.reg_status.in_(OPEN_REG_STATUSES),
+                ),
+            )
             .order_by(Competition.date.asc())
-            .offset(offset)
-            .limit(limit)
         )
         res = await self.session.execute(q)
         return list(res.scalars().all())
-
-    async def count_upcoming_competitions(self) -> int:
-        """Total number of future competitions (for pagination)."""
-        q = (
-            select(func.count())
-            .select_from(Competition)
-            .where(Competition.date >= func.current_date())
-        )
-        res = await self.session.execute(q)
-        return int(res.scalar_one())
 
 
 class NotificationRepository:

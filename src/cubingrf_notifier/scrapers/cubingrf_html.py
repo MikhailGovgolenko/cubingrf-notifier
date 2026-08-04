@@ -24,6 +24,11 @@ RU_MONTHS = {
 # Locate "<day> ... <month> <year>" inside a human-readable date string.
 _DATE_RE = re.compile(r"(\d{1,2})[^а-яё]*?([а-яё]+)[^\d]*?(\d{4})", re.IGNORECASE)
 
+# Registration availability detected in a competition card's status text.
+_OPEN = "open"
+_SCHEDULED = "scheduled"
+_CLOSED = "closed"
+
 
 def parse_russian_date(text: str) -> Optional[datetime]:
     """Parse a Russian date like '22 августа 2026' into a datetime.
@@ -133,6 +138,7 @@ class CubingRFHtmlScraper(CompetitionSource):
             # Location lives in the first "div.text-base"; the region is in an <img title="...">.
             location = self._extract_location(card)
             disciplines = self._extract_disciplines(card)
+            reg_status = self._extract_reg_status(card)
 
             return CompetitionDTO(
                 external_id=external_id,
@@ -141,6 +147,7 @@ class CubingRFHtmlScraper(CompetitionSource):
                 date=parse_russian_date(date_el.text()) if date_el is not None else None,
                 url=link,
                 disciplines=disciplines,
+                reg_status=reg_status,
             )
         except Exception:
             logger.exception("Failed to parse competition card; skipping")
@@ -173,3 +180,33 @@ class CubingRFHtmlScraper(CompetitionSource):
             return codes
         except Exception:
             return []
+
+    def _extract_reg_status(self, card) -> Optional[str]:
+        """Normalize the registration status shown on a competition card.
+
+        Returns 'open', 'scheduled', 'closed' or None when the status text
+        cannot be interpreted (never raises).
+        """
+        try:
+            status_el = card.css_first(".status")
+            if status_el is None:
+                return None
+            text = status_el.text().lower()
+            return self._normalize_reg_status(text)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _normalize_reg_status(text: str) -> Optional[str]:
+        text = text.lower()
+        if (
+            "регистрация закрыта" in text
+            or "результаты утверждены" in text
+            or "завершено" in text
+        ):
+            return _CLOSED
+        if "идёт регистрация" in text:
+            return _OPEN
+        if "до регистрации" in text:
+            return _SCHEDULED
+        return None

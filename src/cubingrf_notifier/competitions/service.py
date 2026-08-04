@@ -21,13 +21,24 @@ class CompetitionService:
     async def check_new_competitions(self) -> List[Competition]:
         """Fetch competitions from source, persist the new ones.
 
+        Existing competitions have their registration status refreshed so the
+        "open / scheduled / closed" filter always reflects the current site.
         Returns the newly persisted Competition ORM objects (with their real
         database ids) so callers can reference them in notifications.
         """
         found = await self.source.fetch_competitions()
         new: List[Competition] = []
         for dto in found:
-            if await self.repo.exists_by_external_id(dto.external_id):
+            existing = await self.repo.get_by_external_id(dto.external_id)
+            if existing is not None:
+                if existing.reg_status != dto.reg_status:
+                    existing.reg_status = dto.reg_status
+                    logger.info(
+                        "Updated reg_status for %s (%s): %s",
+                        existing.name,
+                        dto.external_id,
+                        dto.reg_status,
+                    )
                 continue
             try:
                 comp = await self.repo.add_competition(dto)

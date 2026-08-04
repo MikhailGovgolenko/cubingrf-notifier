@@ -7,10 +7,8 @@ from .keyboards import (
     main_menu_keyboard,
     back_keyboard,
     settings_keyboard,
-    notification_toggle_keyboard,
     MenuCB,
 )
-from .notifications import notifications_text, load_enabled
 
 router = Router()
 
@@ -47,14 +45,4 @@ async def cb_status(callback: CallbackQuery):
 @router.callback_query(MenuCB.filter(F.action == "settings"))
 async def cb_settings(callback: CallbackQuery):
     await callback.message.edit_text("⚙️ Настройки", reply_markup=settings_keyboard())
-    await callback.answer()
-
-
-@router.callback_query(MenuCB.filter(F.action == "notifications"))
-async def cb_notifications(callback: CallbackQuery):
-    enabled = await load_enabled(callback.from_user.id)
-    await callback.message.edit_text(
-        notifications_text(enabled),
-        reply_markup=notification_toggle_keyboard(enabled),
-    )
     await callback.answer()

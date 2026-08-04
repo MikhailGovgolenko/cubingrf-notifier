@@ -29,6 +29,7 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
+    disciplines = relationship("UserDiscipline", back_populates="user", cascade="all, delete-orphan")
 
 class Competition(Base):
     __tablename__ = "competitions"
@@ -39,9 +40,23 @@ class Competition(Base):
     date = Column(DateTime(timezone=True), nullable=True)
     url = Column(String(1024), nullable=True)
     disciplines = Column(JSON, nullable=True)
+    # Registration availability: 'open' | 'scheduled' | 'closed' | None (unknown).
+    reg_status = Column(String(20), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     notifications = relationship("Notification", back_populates="competition", cascade="all, delete-orphan")
+
+class UserDiscipline(Base):
+    """A single discipline the user wants to follow (normalized preference)."""
+    __tablename__ = "user_disciplines"
+    __table_args__ = (
+        UniqueConstraint("user_id", "discipline_code", name="uq_user_discipline"),
+    )
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    discipline_code = Column(String(20), nullable=False)
+
+    user = relationship("User", back_populates="disciplines")
 
 class Notification(Base):
     __tablename__ = "notifications"

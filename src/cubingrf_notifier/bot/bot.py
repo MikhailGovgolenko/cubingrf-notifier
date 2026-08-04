@@ -9,6 +9,7 @@ from .menu import router as menu_router, MAIN_MENU_TEXT
 from .settings import router as settings_router
 from .notifications import router as notifications_router
 from .competitions import router as competitions_router
+from .disciplines import router as disciplines_router
 from .keyboards import main_menu_keyboard
 
 import logging
@@ -22,6 +23,7 @@ dp = Dispatcher()
 dp.include_router(menu_router)
 dp.include_router(settings_router)
 dp.include_router(notifications_router)
+dp.include_router(disciplines_router)
 dp.include_router(competitions_router)
 
 

@@ -4,6 +4,7 @@ from aiogram.types import Message, CallbackQuery
 
 from .keyboards import settings_keyboard, SettingsCB
 from .notifications import show_notifications_screen
+from .disciplines import show_disciplines_screen
 
 router = Router()
 
@@ -19,8 +20,8 @@ async def cb_settings_notifications(callback: CallbackQuery):
     await callback.answer()
 
 
-@router.callback_query(SettingsCB.filter(F.action.in_({"region", "disciplines"})))
-async def cb_coming_soon(callback: CallbackQuery):
+@router.callback_query(SettingsCB.filter(F.action == "region"))
+async def cb_region(callback: CallbackQuery):
     await callback.answer("Этот раздел появится в следующих версиях.", show_alert=True)
 
 

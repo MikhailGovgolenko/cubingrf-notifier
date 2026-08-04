@@ -9,7 +9,7 @@ from aiogram.types import Message, CallbackQuery
 
 from ..database.models import Competition
 from ..database.session import AsyncSessionLocal
-from ..database.repository import CompetitionRepository
+from ..database.repository import CompetitionRepository, UserRepository
 from .keyboards import competitions_keyboard, MenuCB, CompetitionCB
 
 logger = logging.getLogger(__name__)
@@ -49,11 +49,23 @@ def _format_competitions(
     return "\n\n".join(blocks)
 
 
-async def _load_page(page: int) -> Tuple[List[Competition], int]:
+async def _load_page(page: int, telegram_id: int) -> Tuple[List[Competition], int]:
     async with AsyncSessionLocal() as sess:
-        repo = CompetitionRepository(sess)
-        total = await repo.count_upcoming_competitions()
-        comps = await repo.get_upcoming_competitions(offset=page * PAGE_SIZE, limit=PAGE_SIZE)
+        comps = await CompetitionRepository(sess).list_upcoming_competitions()
+        selected = await UserRepository(sess).get_user_disciplines(telegram_id)
+
+    if selected:
+        chosen = set(selected)
+        before = len(comps)
+        comps = [c for c in comps if chosen & set(c.disciplines or [])]
+        logger.info(
+            "Discipline filter (telegram_id=%s): %s selected, %s/%s matched",
+            telegram_id, sorted(chosen), len(comps), before,
+        )
+
+    total = len(comps)
+    start = page * PAGE_SIZE
+    comps = comps[start:start + PAGE_SIZE]
     total_pages = max(1, math.ceil(total / PAGE_SIZE))
     return comps, total_pages
 
@@ -71,16 +83,17 @@ def _render(
 
 @router.callback_query(MenuCB.filter(F.action == "competitions"))
 async def cb_menu_competitions(callback: CallbackQuery):
-    logger.info("Competitions button pressed (telegram_id=%s)", callback.from_user.id)
-    await _render_callback(callback, 0)
+    user_id = callback.from_user.id
+    logger.info("Competitions button pressed (telegram_id=%s)", user_id)
+    await _render_callback(callback, 0, user_id)
 
 
 @router.callback_query(CompetitionCB.filter(F.action == "page"))
 async def cb_competitions_page(callback: CallbackQuery, callback_data: CompetitionCB):
-    await _render_callback(callback, callback_data.page)
+    await _render_callback(callback, callback_data.page, callback.from_user.id)
 
 
-async def _render_callback(callback: CallbackQuery, page: int) -> None:
+async def _render_callback(callback: CallbackQuery, page: int, telegram_id: int) -> None:
     """Load a competitions page, render it and update the message.
 
     Any error is logged with a full traceback (never silently ignored) and
@@ -88,7 +101,7 @@ async def _render_callback(callback: CallbackQuery, page: int) -> None:
     """
     try:
         logger.info("Loading competitions page=%s", page)
-        comps, total_pages = await _load_page(page)
+        comps, total_pages = await _load_page(page, telegram_id)
         logger.info("Found competitions count=%s", len(comps))
         text, kb = _render(comps, page, total_pages)
         await callback.message.edit_text(text, reply_markup=kb)
@@ -104,6 +117,6 @@ async def _render_callback(callback: CallbackQuery, page: int) -> None:
 
 @router.message(Command("competitions"))
 async def cmd_competitions(message: Message):
-    comps, total_pages = await _load_page(0)
+    comps, total_pages = await _load_page(0, message.from_user.id)
     text, kb = _render(comps, 0, total_pages)
     await message.answer(text, reply_markup=kb)
