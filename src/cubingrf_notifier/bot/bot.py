@@ -5,16 +5,22 @@ from aiogram.filters import Command
 from ..config import settings
 from ..database.session import AsyncSessionLocal
 from ..database.repository import UserRepository, CompetitionRepository
+from .settings import router as settings_router
 
 
 bot = Bot(token=settings.telegram_token) if settings.telegram_token else None
 
 dp = Dispatcher()
+dp.include_router(settings_router)
 
 
 @dp.message(Command("start"))
 async def cmd_start(message: Message):
-    """Register the user and enable notifications."""
+    """Register the user and enable notifications.
+
+    New users get a welcome message; existing users are just re-enabled
+    without creating a duplicate row.
+    """
     user = message.from_user
     if user is None:
         return
@@ -23,23 +29,24 @@ async def cmd_start(message: Message):
         user_repo = UserRepository(sess)
         existing = await user_repo.get_user_by_telegram_id(user.id)
 
-        if existing and existing.notifications_enabled:
-            await message.answer("Вы уже подписаны на уведомления.")
+        if existing is None:
+            await user_repo.create_user(user.id)
+            await sess.commit()
+            await message.answer(
+                "🧊 CubingRF Notifier\n"
+                "Бот автоматически уведомляет о новых соревнованиях WCA в России.\n\n"
+                "Команды:\n"
+                "/competitions — ближайшие соревнования\n"
+                "/status — настройки подписки\n"
+                "/settings — настройки\n"
+                "/stop — отключить уведомления"
+            )
             return
 
-        await user_repo.create_user(user.id)
         await user_repo.set_notifications_enabled(user.id, True)
         await sess.commit()
 
-    await message.answer(
-        "👋 Добро пожаловать в CubingRF Notifier!\n\n"
-        "Вы подписаны на уведомления о новых соревнованиях.\n\n"
-        "Команды:\n"
-        "/competitions — ближайшие соревнования\n"
-        "/status — статус подписки\n"
-        "/stop — отписаться\n"
-        "/help — помощь"
-    )
+    await message.answer("Вы снова подписались на уведомления.")
 
 
 @dp.message(Command("stop"))
@@ -76,10 +83,14 @@ async def cmd_status(message: Message):
         await message.answer("Вы не подписаны на уведомления. Отправьте /start.")
         return
 
-    if db_user.notifications_enabled:
-        await message.answer("Вы подписаны на уведомления.")
-    else:
-        await message.answer("Вы не подписаны на уведомления. Отправьте /start.")
+    notifications = "включены ✅" if db_user.notifications_enabled else "выключены ❌"
+    await message.answer(
+        "📢 Статус подписки\n\n"
+        f"Уведомления: {notifications}\n\n"
+        "Настройки:\n"
+        "Регион: все\n"
+        "Дисциплины: все"
+    )
 
 
 @dp.message(Command("help"))
@@ -89,6 +100,7 @@ async def cmd_help(message: Message):
         "/start — подписаться на уведомления\n"
         "/stop — отписаться от уведомлений\n"
         "/status — статус подписки\n"
+        "/settings — настройки\n"
         "/competitions — показать ближайшие соревнования\n"
         "/help — список команд"
     )

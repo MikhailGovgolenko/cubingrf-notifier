@@ -3,25 +3,65 @@ cubingrf-notifier
 
 Telegram notifier for CubingRF competitions.
 
-Quickstart:
-1. Copy .env.example -> .env and fill DATABASE_URL and TELEGRAM_TOKEN
-2. docker compose up -d (runs postgres)
-3. Build and run the app (or run locally with Python)
+Бот автоматически отслеживает новые соревнования по спидкубингу на сайте
+cubingrf.org и уведомляет подписанных пользователей.
 
-Project layout: src/cubingrf_notifier — main package.
+## Запуск
 
-## Database setup
+Предварительно скопируйте `.env.example` в `.env` и заполните `TELEGRAM_TOKEN`:
 
-1. Start Postgres (example using docker-compose):
+```bash
+cp .env.example .env
+```
 
-   docker compose up -d db
+Запуск (построит образ, поднимет PostgreSQL, применит миграции и запустит бота):
 
-2. Create .env with DATABASE_URL and other vars (see .env.example)
+```bash
+docker compose up --build
+```
 
-3. Run migrations:
+Остановка:
 
-   alembic upgrade head
+```bash
+docker compose down
+```
 
+Логи:
 
-Note: Alembic configuration picks up DATABASE_URL from src/cubingrf_notifier/config.py via pydantic-settings. Ensure .env is present when running alembic.
+```bash
+docker compose logs -f web
+```
 
+## Команды бота
+
+- `/start` — подписаться на уведомления
+- `/stop` — отписаться от уведомлений
+- `/status` — статус подписки
+- `/settings` — настройки (меню)
+- `/competitions` — ближайшие соревнования
+- `/help` — список команд
+
+## Project layout
+
+```
+src/cubingrf_notifier — main package
+```
+
+- `config.py` — настройки через pydantic-settings (`.env`)
+- `bot/` — Telegram-хендлеры и клавиатуры (aiogram 3)
+- `database/` — SQLAlchemy async модели, сессия, репозитории
+- `competitions/` — бизнес-логика и DTO соревнований
+- `scrapers/` — парсер cubingrf.org
+- `notifications/` — отправка сообщений в Telegram
+- `scheduler/` — APScheduler
+- `alembic/` — миграции БД
+
+## База данных
+
+Миграции применяются автоматически при старте контейнера (`alembic upgrade head`).
+
+Локально:
+
+```bash
+alembic upgrade head
+```
