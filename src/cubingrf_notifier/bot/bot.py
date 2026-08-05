@@ -5,11 +5,12 @@ from aiogram.filters import Command
 from ..config import settings
 from ..database.session import AsyncSessionLocal
 from ..database.repository import UserRepository
-from .menu import router as menu_router, MAIN_MENU_TEXT
+from ..i18n import get_text
+from .menu import router as menu_router
 from .settings import router as settings_router
-from .notifications import router as notifications_router
 from .competitions import router as competitions_router
 from .disciplines import router as disciplines_router
+from .language import router as language_router
 from .keyboards import main_menu_keyboard
 
 import logging
@@ -22,8 +23,8 @@ bot = Bot(token=settings.telegram_token) if settings.telegram_token else None
 dp = Dispatcher()
 dp.include_router(menu_router)
 dp.include_router(settings_router)
-dp.include_router(notifications_router)
 dp.include_router(disciplines_router)
+dp.include_router(language_router)
 dp.include_router(competitions_router)
 
 
@@ -49,8 +50,10 @@ async def cmd_start(message: Message):
         else:
             await user_repo.set_notifications_enabled(user.id, True)
         await sess.commit()
+        language = await user_repo.get_user_language(user.id)
 
-    await message.answer(MAIN_MENU_TEXT, reply_markup=main_menu_keyboard())
+    text = get_text(language, "menu.title")
+    await message.answer(text, reply_markup=main_menu_keyboard(language))
 
 
 @dp.message(Command("help"))
@@ -60,5 +63,6 @@ async def cmd_help(message: Message):
         "Управляйте ботом через кнопки главного меню.\n\n"
         "/start — открыть главное меню\n"
         "/competitions — ближайшие соревнования\n"
+        "/settings — настройки\n"
         "/help — список команд"
     )

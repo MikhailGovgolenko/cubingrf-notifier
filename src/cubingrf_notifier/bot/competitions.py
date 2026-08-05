@@ -10,6 +10,8 @@ from aiogram.types import Message, CallbackQuery
 from ..database.models import Competition
 from ..database.session import AsyncSessionLocal
 from ..database.repository import CompetitionRepository, UserRepository
+from ..competitions.disciplines import discipline_label
+from ..i18n import get_text
 from .keyboards import competitions_keyboard, MenuCB, CompetitionCB
 
 logger = logging.getLogger(__name__)
@@ -23,36 +25,67 @@ _RU_MONTHS = {
     7: "июля", 8: "августа", 9: "сентября", 10: "октября", 11: "ноября", 12: "декабря",
 }
 
+_EN_MONTHS = {
+    1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June",
+    7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December",
+}
 
-def _format_date(d: datetime) -> str:
+_REG_LABEL_KEYS = {
+    "open": "competitions.reg_open",
+    "scheduled": "competitions.reg_scheduled",
+    "closed": "competitions.reg_closed",
+}
+
+
+def _format_date(d: datetime, language: str = "ru") -> str:
     if d is None:
-        return "дата неизвестна"
-    return f"{d.day} {_RU_MONTHS[d.month]} {d.year}"
+        return get_text(language, "unknown_date")
+    months = _RU_MONTHS if language == "ru" else _EN_MONTHS
+    return f"{d.day} {months[d.month]} {d.year}"
+
+
+def _format_competition(c: Competition, language: str = "ru") -> str:
+    """Single competition card: name, date, location, disciplines, registration, link."""
+    lines = [
+        f"🏆 {c.name}",
+        "",
+        get_text(language, "competitions.date", date=_format_date(c.date, language)),
+        get_text(language, "competitions.location", location=c.location or "-"),
+    ]
+
+    discipline_codes = c.disciplines or []
+    if discipline_codes:
+        labels = ", ".join(discipline_label(code) for code in discipline_codes)
+        lines.append(f"\n{get_text(language, 'competitions.disciplines')}\n{labels}")
+
+    reg_key = _REG_LABEL_KEYS.get(c.reg_status or "")
+    if reg_key:
+        lines.append(f"\n{get_text(language, reg_key)}")
+
+    if c.url:
+        lines.append(f"\n🔗 {c.url}")
+
+    return "\n".join(lines)
 
 
 def _format_competitions(
     comps: List[Competition],
-    page: int,
-    total_pages: int
+    language: str = "ru",
 ) -> str:
     if not comps:
-        return "📅 Ближайших соревнований нет."
+        return get_text(language, "competitions.title") + "\n\n" + get_text(language, "competitions.none")
 
-    blocks = [
-        f"📅 Ближайшие соревнования\nСтраница {page + 1}/{total_pages}:"
-    ]
-    for c in comps:
-        block = f"{c.name}\n📆 {_format_date(c.date)}\n📍 {c.location or '-'}"
-        if c.url:
-            block += f"\n🔗 {c.url}"
-        blocks.append(block)
-    return "\n\n".join(blocks)
+    blocks = [get_text(language, "competitions.title")]
+    blocks.extend(_format_competition(c, language) for c in comps)
+    return "\n\n---\n\n".join(blocks)
 
 
-async def _load_page(page: int, telegram_id: int) -> Tuple[List[Competition], int]:
+async def _load_page(page: int, telegram_id: int) -> Tuple[List[Competition], int, str]:
     async with AsyncSessionLocal() as sess:
-        comps = await CompetitionRepository(sess).list_upcoming_competitions()
+        repo = CompetitionRepository(sess)
+        comps = await repo.list_upcoming_competitions()
         selected = await UserRepository(sess).get_user_disciplines(telegram_id)
+        language = await UserRepository(sess).get_user_language(telegram_id)
 
     if selected:
         chosen = set(selected)
@@ -67,17 +100,18 @@ async def _load_page(page: int, telegram_id: int) -> Tuple[List[Competition], in
     start = page * PAGE_SIZE
     comps = comps[start:start + PAGE_SIZE]
     total_pages = max(1, math.ceil(total / PAGE_SIZE))
-    return comps, total_pages
+    return comps, total_pages, language
 
 
 def _render(
     comps: List[Competition],
     page: int,
-    total_pages: int
+    total_pages: int,
+    language: str,
 ) -> Tuple[str, object]:
     return (
-        _format_competitions(comps, page, total_pages),
-        competitions_keyboard(page, total_pages),
+        _format_competitions(comps, language),
+        competitions_keyboard(page, total_pages, language),
     )
 
 
@@ -93,6 +127,12 @@ async def cb_competitions_page(callback: CallbackQuery, callback_data: Competiti
     await _render_callback(callback, callback_data.page, callback.from_user.id)
 
 
+@router.callback_query(CompetitionCB.filter(F.action == "none"))
+async def cb_competitions_none(callback: CallbackQuery):
+    """Page indicator tap: no-op, just acknowledge the callback."""
+    await callback.answer()
+
+
 async def _render_callback(callback: CallbackQuery, page: int, telegram_id: int) -> None:
     """Load a competitions page, render it and update the message.
 
@@ -101,9 +141,9 @@ async def _render_callback(callback: CallbackQuery, page: int, telegram_id: int)
     """
     try:
         logger.info("Loading competitions page=%s", page)
-        comps, total_pages = await _load_page(page, telegram_id)
+        comps, total_pages, language = await _load_page(page, telegram_id)
         logger.info("Found competitions count=%s", len(comps))
-        text, kb = _render(comps, page, total_pages)
+        text, kb = _render(comps, page, total_pages, language)
         await callback.message.edit_text(text, reply_markup=kb)
     except Exception:
         logger.exception(
@@ -117,6 +157,6 @@ async def _render_callback(callback: CallbackQuery, page: int, telegram_id: int)
 
 @router.message(Command("competitions"))
 async def cmd_competitions(message: Message):
-    comps, total_pages = await _load_page(0, message.from_user.id)
-    text, kb = _render(comps, 0, total_pages)
+    comps, total_pages, language = await _load_page(0, message.from_user.id)
+    text, kb = _render(comps, 0, total_pages, language)
     await message.answer(text, reply_markup=kb)

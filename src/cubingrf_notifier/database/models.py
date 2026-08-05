@@ -26,6 +26,8 @@ class User(Base):
     id = Column(Integer, primary_key=True)
     telegram_id = Column(BigInteger, unique=True, nullable=False)
     notifications_enabled = Column(Boolean, nullable=False, default=True, server_default="true")
+    # Interface language (two-letter code, see i18n.DEFAULT_LANGUAGE).
+    language = Column(String(10), nullable=False, default="ru", server_default="ru")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")

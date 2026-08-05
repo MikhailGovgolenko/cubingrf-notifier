@@ -40,6 +40,20 @@ class UserRepository:
         await self.session.flush()
         return user
 
+    async def get_user_language(self, telegram_id: int) -> str:
+        """The user's interface language code ('ru' by default)."""
+        user = await self.get_user_by_telegram_id(telegram_id)
+        return user.language if user is not None else "ru"
+
+    async def set_user_language(self, telegram_id: int, language: str) -> Optional[User]:
+        """Save the user's interface language. Returns None if not registered."""
+        user = await self.get_user_by_telegram_id(telegram_id)
+        if user is None:
+            return None
+        user.language = language
+        await self.session.flush()
+        return user
+
     async def list_enabled_users(self) -> List[User]:
         """Users currently subscribed to notifications."""
         q = select(User).where(User.notifications_enabled.is_(True))

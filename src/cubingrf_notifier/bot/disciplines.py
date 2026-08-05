@@ -6,6 +6,7 @@ from aiogram.types import CallbackQuery
 from ..database.session import AsyncSessionLocal
 from ..database.repository import UserRepository
 from ..competitions.disciplines import discipline_label, ALL_DISCIPLINE_CODES
+from ..i18n import get_text
 from .keyboards import (
     disciplines_keyboard,
     SettingsCB,
@@ -23,18 +24,24 @@ async def _load_selected(telegram_id: int) -> list[str]:
         return await UserRepository(sess).get_user_disciplines(telegram_id)
 
 
-def _disciplines_text(selected: list[str]) -> str:
+async def _user_language(telegram_id: int) -> str:
+    async with AsyncSessionLocal() as sess:
+        return await UserRepository(sess).get_user_language(telegram_id)
+
+
+def _disciplines_text(selected: list[str], language: str = "ru") -> str:
     if not selected:
-        return "🧩 Ваши дисциплины:\n\nНичего не выбрано — показываются все соревнования."
+        return f"{get_text(language, 'disciplines.title')}\n\n{get_text(language, 'disciplines.none')}"
     labels = ", ".join(discipline_label(code) for code in selected)
-    return f"🧩 Ваши дисциплины:\n\n{labels}"
+    return f"{get_text(language, 'disciplines.title')}\n\n{labels}"
 
 
 async def show_disciplines_screen(callback: CallbackQuery) -> None:
     selected = await _load_selected(callback.from_user.id)
+    language = await _user_language(callback.from_user.id)
     await callback.message.edit_text(
-        _disciplines_text(selected),
-        reply_markup=disciplines_keyboard(selected),
+        _disciplines_text(selected, language),
+        reply_markup=disciplines_keyboard(selected, language),
     )
     await callback.answer()
 
