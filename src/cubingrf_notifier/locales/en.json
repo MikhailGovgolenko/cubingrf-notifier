@@ -47,6 +47,7 @@
   "competitions.more_disciplines": "+{count}",
   "competitions.reg_open": "🟢 Registration is open",
   "competitions.reg_scheduled": "🟡 Registration opens soon",
+  "competitions.reg_opening_in": "🟡 Registration opens in {count} {unit}",
   "competitions.reg_closed": "🔴 Registration closed",
   "competitions.page": "{page}/{total}",
 

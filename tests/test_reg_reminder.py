@@ -63,6 +63,33 @@ def test_reminder_naive_dates_treated_as_utc():
     assert should_send_registration_reminder(start_naive, now) is True
 
 
+def test_reminder_not_sent_after_scheduler_downtime():
+    now = _utc(2026, 8, 16, 7, 0)
+    start = now - timedelta(minutes=25)
+    assert should_send_registration_reminder(start, now) is False
+
+
+def test_reminder_same_instant_any_timezone():
+    now = _utc(2026, 8, 16, 7, 5)
+    start_utc = _utc(2026, 8, 16, 7, 30)
+    start_msk = datetime(2026, 8, 16, 10, 30, tzinfo=timezone(timedelta(hours=3)))
+    assert should_send_registration_reminder(start_utc, now) is True
+    assert should_send_registration_reminder(start_msk, now) is True
+
+
+def test_start_at_differ_compares_utc_instants():
+    from cubingrf_notifier.competitions.service import _start_at_differ
+
+    a = _utc(2026, 8, 16, 7, 0)
+    assert _start_at_differ(None, a) is True
+    assert _start_at_differ(a, None) is True
+    assert _start_at_differ(a, a) is False
+    assert _start_at_differ(a, a + timedelta(hours=2)) is True
+    msk_same = datetime(2026, 8, 16, 10, 0, tzinfo=timezone(timedelta(hours=3)))
+    assert _start_at_differ(a, msk_same) is False
+    assert _start_at_differ(datetime(2026, 8, 16, 7, 0), a) is True
+
+
 # ---------- recipients: region / discipline / disabled ----------
 
 def _comp(location="Москва, Москва", disciplines=("333", "444")):
@@ -110,8 +137,8 @@ def test_reminder_language_ru_and_en():
     en = format_registration_reminder(_full_comp(), "en")
     assert "🔔 Регистрация откроется через 30 минут!" in ru
     assert "🔔 Registration opens in 30 minutes!" in en
-    assert "🏆 Moscow Open" in ru
-    assert "🏆 Moscow Open" in en
+    assert "🏆 [Moscow Open](https://cubingrf.org/competitions/MoscowOpen2026)" in ru
+    assert "🏆 [Moscow Open](https://cubingrf.org/competitions/MoscowOpen2026)" in en
 
 
 # ---------- deduplication per kind ----------
@@ -149,3 +176,46 @@ async def test_was_sent_distinguishes_kind(db_session):
 
     assert await repo.was_sent(user.id, comp.id, KIND_NEW) is True
     assert await repo.was_sent(user.id, comp.id, KIND_REG_SOON) is False
+
+
+async def test_reminder_dedup_survives_start_at_change(db_session):
+    user = User(telegram_id=333, language="ru")
+    comp = Competition(external_id="C1", name="", registration_start_at=_utc(2026, 8, 16, 10, 0))
+    db_session.add_all([user, comp])
+    await db_session.flush()
+
+    repo = NotificationRepository(db_session)
+    await repo.mark_sent(user.id, comp.id, KIND_REG_SOON)
+    await db_session.commit()
+
+    comp.registration_start_at = _utc(2026, 8, 16, 12, 0)
+    await db_session.flush()
+
+    assert await repo.was_sent(user.id, comp.id, KIND_REG_SOON) is True
+
+
+async def test_reminders_independent_between_competitions(db_session):
+    user = User(telegram_id=444, language="ru")
+    c1 = Competition(external_id="A", name="")
+    c2 = Competition(external_id="B", name="")
+    db_session.add_all([user, c1, c2])
+    await db_session.flush()
+
+    repo = NotificationRepository(db_session)
+    await repo.mark_sent(user.id, c1.id, KIND_REG_SOON)
+    await db_session.commit()
+
+    assert await repo.was_sent(user.id, c1.id, KIND_REG_SOON) is True
+    assert await repo.was_sent(user.id, c2.id, KIND_REG_SOON) is False
+
+
+async def test_registration_start_roundtrip_preserves_instant(db_session):
+    start = _utc(2026, 8, 16, 7, 0)
+    comp = Competition(external_id="RT", name="", registration_start_at=start)
+    db_session.add(comp)
+    await db_session.commit()
+    await db_session.refresh(comp)
+
+    now = _utc(2026, 8, 16, 6, 45)
+    assert should_send_registration_reminder(comp.registration_start_at, now) is True
+    assert should_send_registration_reminder(comp.registration_start_at, start) is False

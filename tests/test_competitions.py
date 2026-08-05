@@ -46,12 +46,12 @@ def test_format_date_unknown():
 
 def test_competition_card_ru_open():
     text = _format_competition(_comp(disciplines=["333", "444"]), "ru")
-    assert "🏆 Moscow Open" in text
+    assert "🏆 [Moscow Open](https://cubingrf.org/competitions/1)" in text
     assert "📅 7 августа 2026" in text
     assert "📍 Москва" in text
     assert "🧩 3x3 • 4x4" in text
     assert "🟢 Идёт регистрация" in text
-    assert "🔗 https://cubingrf.org/competitions/1" in text
+    assert "🔗 " not in text
 
 
 def test_competition_card_scheduled_en():

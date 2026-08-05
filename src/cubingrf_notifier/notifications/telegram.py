@@ -1,4 +1,6 @@
 from aiogram import Bot
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 
 from ..config import settings
 from ..database.models import Competition
@@ -10,7 +12,10 @@ class TelegramNotifier:
         token = token or settings.telegram_token
         if not token:
             raise RuntimeError("TELEGRAM_TOKEN not provided in settings")
-        self.bot = Bot(token=token)
+        self.bot = Bot(
+            token=token,
+            default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN),
+        )
 
     async def send_competition(
         self,

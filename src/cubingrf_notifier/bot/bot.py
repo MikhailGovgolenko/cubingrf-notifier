@@ -1,4 +1,6 @@
 from aiogram import Bot, Dispatcher
+from aiogram.client.default import DefaultBotProperties
+from aiogram.enums import ParseMode
 from aiogram.types import ErrorEvent, Message
 from aiogram.filters import Command
 
@@ -19,7 +21,14 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-bot = Bot(token=settings.telegram_token) if settings.telegram_token else None
+bot = (
+    Bot(
+        token=settings.telegram_token,
+        default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN),
+    )
+    if settings.telegram_token
+    else None
+)
 
 dp = Dispatcher()
 dp.include_router(menu_router)

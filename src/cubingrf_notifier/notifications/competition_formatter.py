@@ -3,8 +3,9 @@
 Used both by the bot's "competitions" page and by push notifications, so the
 output is always identical and localized the same way.
 """
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional
+import re
 
 from ..competitions.disciplines import discipline_short_label, sort_discipline_codes
 from ..i18n import get_text
@@ -27,6 +28,84 @@ _REG_LABEL_KEYS = {
     "scheduled": "competitions.reg_scheduled",
     "closed": "competitions.reg_closed",
 }
+
+# Characters that start/end formatting in Telegram legacy Markdown and must be
+# escaped inside a link label.
+_TG_MD_ESCAPE_RE = re.compile(r"([\\_*\[\]()`])")
+
+
+def _tg_escape(text: str) -> str:
+    """Escape Telegram legacy-Markdown specials so raw text is shown verbatim."""
+    return _TG_MD_ESCAPE_RE.sub(r"\\\1", text)
+
+
+def _title_line(competition) -> str:
+    """Competition name; a Telegram Markdown link to the page when available."""
+    name = competition.name or ""
+    if not competition.url:
+        return f"🏆 {name}"
+    return f"🏆 [{_tg_escape(name)}]({competition.url})"
+
+
+def _ru_plural(count: int, forms: tuple[str, str, str]) -> str:
+    """Russian plural: forms = (one, few, many)."""
+    n = abs(count) % 100
+    if 10 < n < 20:
+        return forms[2]
+    n %= 10
+    if n == 1:
+        return forms[0]
+    if 2 <= n <= 4:
+        return forms[1]
+    return forms[2]
+
+
+_RU_UNITS = {
+    "day": ("день", "дня", "дней"),
+    "hour": ("час", "часа", "часов"),
+    "minute": ("минуту", "минуты", "минут"),
+}
+_EN_UNITS = {"day": "day", "hour": "hour", "minute": "minute"}
+
+
+def format_registration_countdown(
+    registration_start_at: datetime | None,
+    language: str = "ru",
+    now: datetime | None = None,
+) -> str | None:
+    """Localized "registration opens in N days/hours/minutes".
+
+    Returns None (caller keeps the previous label) when there is no opening
+    time, when it already passed, or when the remaining time is zero — so no
+    wrong/negative values are ever emitted.
+    """
+    if registration_start_at is None:
+        return None
+    if now is None:
+        now = datetime.now(timezone.utc)
+    start = registration_start_at
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    remaining = start.astimezone(timezone.utc) - now.astimezone(timezone.utc)
+    if remaining <= timedelta(0):
+        return None
+
+    total_minutes = max(1, int(remaining.total_seconds() // 60))
+    if total_minutes < 60:
+        count, key = total_minutes, "minute"
+    elif total_minutes < 24 * 60:
+        count, key = total_minutes // 60, "hour"
+    else:
+        count, key = total_minutes // (24 * 60), "day"
+
+    if language == "ru":
+        unit = _ru_plural(count, _RU_UNITS[key])
+    else:
+        unit = _EN_UNITS[key] + ("" if count == 1 else "s")
+
+    return get_text(language, "competitions.reg_opening_in", count=count, unit=unit)
 
 
 def format_date(d: datetime | None, language: str = "ru") -> str:
@@ -80,7 +159,7 @@ def format_competition_card(competition, language: str = "ru") -> str:
     of a notification.
     """
     lines = [
-        f"🏆 {competition.name}",
+        _title_line(competition),
         "",
         get_text(language, "competitions.date", date=format_date_range(
             competition.date, getattr(competition, "end_date", None), language,
@@ -95,12 +174,16 @@ def format_competition_card(competition, language: str = "ru") -> str:
 
     reg_key = _REG_LABEL_KEYS.get(competition.reg_status or "")
     if reg_key:
+        label = get_text(language, reg_key)
+        if reg_key == "competitions.reg_scheduled":
+            countdown = format_registration_countdown(
+                getattr(competition, "registration_start_at", None),
+                language,
+            )
+            if countdown is not None:
+                label = countdown
         lines.append("")
-        lines.append(get_text(language, reg_key))
-
-    if competition.url:
-        lines.append("")
-        lines.append(f"🔗 {competition.url}")
+        lines.append(label)
 
     return "\n".join(lines)
 
