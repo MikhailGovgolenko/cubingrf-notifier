@@ -17,15 +17,15 @@ def _user(notifications_enabled=True, disciplines=(), regions=()):
 
 def test_status_new_user_defaults():
     text = format_user_status(_user())
-    assert "Уведомления: ✅ Включены" in text
-    assert "Язык: Русский" in text
+    assert "Уведомления: ✅" in text
+    assert "Язык: 🇷🇺 Русский" in text
     assert "Регионы: Все" in text
     assert "Дисциплины: Все" in text
 
 
 def test_status_notifications_disabled():
     text = format_user_status(_user(notifications_enabled=False))
-    assert "Уведомления: ❌ Выключены" in text
+    assert "Уведомления: ❌" in text
 
 
 def test_status_disciplines_labels():
@@ -119,8 +119,8 @@ def test_status_few_regions_shows_list_in_catalog_order():
 
 def test_status_english():
     text = format_user_status(_user(), language="en")
-    assert "Notifications: ✅ Enabled" in text
-    assert "Language: English" in text
+    assert "Notifications: ✅" in text
+    assert "Language: 🇬🇧 English" in text
     assert "Regions: All" in text
     assert "Disciplines: All" in text
 

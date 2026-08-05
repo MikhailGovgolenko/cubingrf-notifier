@@ -10,9 +10,16 @@ from aiogram.types import Message, CallbackQuery
 from ..database.models import Competition
 from ..database.session import AsyncSessionLocal
 from ..database.repository import CompetitionRepository, UserRepository
-from ..competitions.disciplines import discipline_short_label, sort_discipline_codes
-from ..competitions.regions import region_key_from_location
+from ..notifications.competition_formatter import (
+    CARD_SEPARATOR,
+    format_competition_card,
+    format_date,
+    format_date_range,
+    short_location,
+    disciplines_line,
+)
 from ..i18n import get_text
+from ..competitions.regions import region_key_from_location
 from .keyboards import competitions_keyboard, MenuCB, CompetitionCB
 
 logger = logging.getLogger(__name__)
@@ -21,31 +28,9 @@ router = Router()
 
 PAGE_SIZE = 10
 
-# Separator between competition cards, spanning the full message width.
-CARD_SEPARATOR = "─" * 18
-
-_RU_MONTHS = {
-    1: "января", 2: "февраля", 3: "марта", 4: "апреля", 5: "мая", 6: "июня",
-    7: "июля", 8: "августа", 9: "сентября", 10: "октября", 11: "ноября", 12: "декабря",
-}
-
-_EN_MONTHS = {
-    1: "January", 2: "February", 3: "March", 4: "April", 5: "May", 6: "June",
-    7: "July", 8: "August", 9: "September", 10: "October", 11: "November", 12: "December",
-}
-
-_REG_LABEL_KEYS = {
-    "open": "competitions.reg_open",
-    "scheduled": "competitions.reg_scheduled",
-    "closed": "competitions.reg_closed",
-}
-
 
 def _format_date(d: datetime, language: str = "ru") -> str:
-    if d is None:
-        return get_text(language, "unknown_date")
-    months = _RU_MONTHS if language == "ru" else _EN_MONTHS
-    return f"{d.day} {months[d.month]} {d.year}"
+    return format_date(d, language)
 
 
 def _format_date_range(
@@ -53,64 +38,19 @@ def _format_date_range(
     end: datetime | None,
     language: str = "ru",
 ) -> str:
-    """Localized date label: single day or a multi-day range.
-
-    Single day:        "7 августа 2026"
-    Same month range:  "4–6 декабря 2026"
-    Cross month/year:  "28 декабря 2026 — 3 января 2027"
-    """
-    if start is None:
-        return get_text(language, "unknown_date")
-    if end is None or end <= start:
-        return _format_date(start, language)
-    if start.month == end.month and start.year == end.year:
-        months = _RU_MONTHS if language == "ru" else _EN_MONTHS
-        return f"{start.day}–{end.day} {months[start.month]} {start.year}"
-    return f"{_format_date(start, language)} — {_format_date(end, language)}"
+    return format_date_range(start, end, language)
 
 
 def _short_location(location: str | None) -> str:
-    """Trim "Region, City" to just the city for a compact card."""
-    if not location:
-        return "-"
-    city = location.split(",", 1)[-1].strip()
-    return city or location
+    return short_location(location)
 
 
 def _disciplines_line(codes: List[str], language: str) -> str | None:
-    """Full discipline line: "3x3 • 4x4 • OH", nothing truncated."""
-    if not codes:
-        return None
-    labels = [discipline_short_label(c) for c in sort_discipline_codes(codes)]
-    return f"{get_text(language, 'competitions.disciplines')} {' • '.join(labels)}"
+    return disciplines_line(codes, language)
 
 
 def _format_competition(c: Competition, language: str = "ru") -> str:
-    """Single compact competition card:
-    title, date/location, short discipline list, registration, link.
-    """
-    lines = [
-        f"🏆 {c.name}",
-        "",
-        get_text(language, "competitions.date", date=_format_date_range(c.date, c.end_date, language)),
-        get_text(language, "competitions.location", location=_short_location(c.location)),
-    ]
-
-    disc_line = _disciplines_line(c.disciplines or [], language)
-    if disc_line:
-        lines.append("")
-        lines.append(disc_line)
-
-    reg_key = _REG_LABEL_KEYS.get(c.reg_status or "")
-    if reg_key:
-        lines.append("")
-        lines.append(get_text(language, reg_key))
-
-    if c.url:
-        lines.append("")
-        lines.append(f"🔗 {c.url}")
-
-    return "\n".join(lines)
+    return format_competition_card(c, language)
 
 
 def _format_competitions(

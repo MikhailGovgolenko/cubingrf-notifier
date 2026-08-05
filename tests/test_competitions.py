@@ -47,7 +47,7 @@ def test_format_date_unknown():
 def test_competition_card_ru_open():
     text = _format_competition(_comp(disciplines=["333", "444"]), "ru")
     assert "🏆 Moscow Open" in text
-    assert "📆 7 августа 2026" in text
+    assert "📅 7 августа 2026" in text
     assert "📍 Москва" in text
     assert "🧩 3x3 • 4x4" in text
     assert "🟢 Идёт регистрация" in text
@@ -112,12 +112,12 @@ def test_competition_card_date_range_shown():
         _comp(date=datetime(2026, 12, 4), end_date=datetime(2026, 12, 6)),
         "ru",
     )
-    assert "📆 4–6 декабря 2026" in text
+    assert "📅 4–6 декабря 2026" in text
 
 
 def test_competition_card_single_date_unchanged():
     text = _format_competition(_comp(date=datetime(2026, 8, 7), end_date=None), "ru")
-    assert "📆 7 августа 2026" in text
+    assert "📅 7 августа 2026" in text
 
 
 def test_competition_card_city_only_location():

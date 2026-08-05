@@ -77,7 +77,11 @@ async def check_and_notify() -> None:
                         comp.id,
                         user.telegram_id,
                     )
-                    await notifier.send_competition(user.telegram_id, comp)
+                    await notifier.send_competition(
+                        user.telegram_id,
+                        comp,
+                        language=user.language or "ru",
+                    )
                     await notif_repo.mark_sent(user.id, comp.id)
                     logger.info(
                         "Notification sent competition=%s user=%s",

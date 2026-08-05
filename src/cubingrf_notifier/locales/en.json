@@ -50,6 +50,8 @@
   "competitions.reg_closed": "🔴 Registration closed",
   "competitions.page": "{page}/{total}",
 
+  "notifications.title": "🆕 New competition!",
+
   "back": "◀️ Back",
   "unknown_date": "date unknown"
 }

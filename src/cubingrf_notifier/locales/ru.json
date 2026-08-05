@@ -50,6 +50,8 @@
   "competitions.reg_closed": "🔴 Регистрация закрыта",
   "competitions.page": "{page}/{total}",
 
+  "notifications.title": "🆕 Новое соревнование!",
+
   "back": "◀️ Назад",
   "unknown_date": "дата неизвестна"
 }
