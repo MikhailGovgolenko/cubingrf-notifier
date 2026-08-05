@@ -39,6 +39,13 @@ REGION_LABELS: dict[str, str] = dict(REGIONS)
 
 ALL_REGION_KEYS: list[str] = [key for key, _ in REGIONS]
 
+_REGION_ORDER: dict[str, int] = {key: i for i, (key, _) in enumerate(REGIONS)}
+
+
+def sort_region_keys(keys) -> list[str]:
+    """Order region keys by the canonical catalog order (unknowns last)."""
+    return sorted(keys, key=lambda k: _REGION_ORDER.get(k, len(_REGION_ORDER)))
+
 # Location prefixes (from Competition.location) that map onto a canonical region.
 # Moscow and Moscow Oblast are a single region "Москва".
 _REGION_PREFIXES: dict[str, str] = {

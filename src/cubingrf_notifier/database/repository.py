@@ -122,6 +122,7 @@ class CompetitionRepository:
             name=dto.name,
             location=dto.location,
             date=dto.date,
+            end_date=dto.end_date,
             url=dto.url,
             disciplines=dto.disciplines or [],
             reg_status=dto.reg_status,

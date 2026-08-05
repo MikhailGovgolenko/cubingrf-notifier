@@ -2,7 +2,7 @@ from types import SimpleNamespace
 
 from cubingrf_notifier.bot.user_status import format_user_status
 from cubingrf_notifier.bot.keyboards import disciplines_keyboard, main_menu_keyboard
-from cubingrf_notifier.competitions.disciplines import DISCIPLINES
+from cubingrf_notifier.competitions.disciplines import DISCIPLINES, ALL_DISCIPLINE_CODES
 from cubingrf_notifier.i18n import get_text
 
 
@@ -40,6 +40,36 @@ def test_status_disciplines_codes_override_relationship():
     text = format_user_status(user, discipline_codes=["222"])
     assert "• 2x2x2" in text
     assert "3x3x3" not in text
+
+
+def test_status_all_disciplines_shows_all_ru():
+    user = _user(disciplines=list(ALL_DISCIPLINE_CODES))
+    text = format_user_status(user)
+    assert "Дисциплины: Все" in text
+    assert "• " not in text
+
+
+def test_status_all_disciplines_shows_all_en():
+    user = _user(disciplines=list(ALL_DISCIPLINE_CODES))
+    text = format_user_status(user, language="en")
+    assert "Disciplines: All" in text
+    assert "• " not in text
+
+
+def test_status_partial_disciplines_lists_selection():
+    user = _user(disciplines=["333", "minx", "clock"])
+    text = format_user_status(user)
+    assert "Дисциплины: Все" not in text
+    assert "Дисциплины:" in text
+
+
+def test_status_discipline_labels_follow_catalog_order():
+    user = _user(disciplines=["minx", "333", "clock"])
+    text = format_user_status(user)
+    disci = text.split("Дисциплины:", 1)[1]
+    labels = [name for name in ("3x3x3", "Clock", "Megaminx") if f"• {name}" in disci]
+    assert labels == ["3x3x3", "Clock", "Megaminx"]
+    assert disci.index("• 3x3x3") < disci.index("• Clock") < disci.index("• Megaminx")
 
 
 def test_status_regions_from_relationship():

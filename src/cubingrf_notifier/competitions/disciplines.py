@@ -45,6 +45,18 @@ DISCIPLINE_SHORT_LABELS: dict[str, str] = {
 
 ALL_DISCIPLINE_CODES: list[str] = [code for code, _ in DISCIPLINES]
 
+_DISCIPLINE_ORDER: dict[str, int] = {code: i for i, (code, _) in enumerate(DISCIPLINES)}
+
+
+def sort_discipline_codes(codes) -> list[str]:
+    """Order discipline codes by the canonical catalog order.
+
+    Unknown codes (not in the catalog) are pushed to the end so they never
+    break the ordering. This is the single source of ordering for both the
+    competition card and the selection keyboard.
+    """
+    return sorted(codes, key=lambda c: _DISCIPLINE_ORDER.get(c, len(_DISCIPLINE_ORDER)))
+
 
 def discipline_label(code: str) -> str:
     """Human-readable label for a discipline code; falls back to the code."""

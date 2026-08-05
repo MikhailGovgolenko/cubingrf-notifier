@@ -10,7 +10,7 @@ from aiogram.types import Message, CallbackQuery
 from ..database.models import Competition
 from ..database.session import AsyncSessionLocal
 from ..database.repository import CompetitionRepository, UserRepository
-from ..competitions.disciplines import discipline_short_label
+from ..competitions.disciplines import discipline_short_label, sort_discipline_codes
 from ..competitions.regions import region_key_from_location
 from ..i18n import get_text
 from .keyboards import competitions_keyboard, MenuCB, CompetitionCB
@@ -22,7 +22,7 @@ router = Router()
 PAGE_SIZE = 10
 
 # Separator between competition cards, spanning the full message width.
-CARD_SEPARATOR = "─" * 21
+CARD_SEPARATOR = "─" * 18
 
 _RU_MONTHS = {
     1: "января", 2: "февраля", 3: "марта", 4: "апреля", 5: "мая", 6: "июня",
@@ -48,6 +48,27 @@ def _format_date(d: datetime, language: str = "ru") -> str:
     return f"{d.day} {months[d.month]} {d.year}"
 
 
+def _format_date_range(
+    start: datetime | None,
+    end: datetime | None,
+    language: str = "ru",
+) -> str:
+    """Localized date label: single day or a multi-day range.
+
+    Single day:        "7 августа 2026"
+    Same month range:  "4–6 декабря 2026"
+    Cross month/year:  "28 декабря 2026 — 3 января 2027"
+    """
+    if start is None:
+        return get_text(language, "unknown_date")
+    if end is None or end <= start:
+        return _format_date(start, language)
+    if start.month == end.month and start.year == end.year:
+        months = _RU_MONTHS if language == "ru" else _EN_MONTHS
+        return f"{start.day}–{end.day} {months[start.month]} {start.year}"
+    return f"{_format_date(start, language)} — {_format_date(end, language)}"
+
+
 def _short_location(location: str | None) -> str:
     """Trim "Region, City" to just the city for a compact card."""
     if not location:
@@ -60,7 +81,7 @@ def _disciplines_line(codes: List[str], language: str) -> str | None:
     """Full discipline line: "3x3 • 4x4 • OH", nothing truncated."""
     if not codes:
         return None
-    labels = [discipline_short_label(c) for c in codes]
+    labels = [discipline_short_label(c) for c in sort_discipline_codes(codes)]
     return f"{get_text(language, 'competitions.disciplines')} {' • '.join(labels)}"
 
 
@@ -71,7 +92,7 @@ def _format_competition(c: Competition, language: str = "ru") -> str:
     lines = [
         f"🏆 {c.name}",
         "",
-        get_text(language, "competitions.date", date=_format_date(c.date, language)),
+        get_text(language, "competitions.date", date=_format_date_range(c.date, c.end_date, language)),
         get_text(language, "competitions.location", location=_short_location(c.location)),
     ]
 

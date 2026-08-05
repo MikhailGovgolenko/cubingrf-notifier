@@ -4,7 +4,8 @@ from aiogram.types import CallbackQuery, Message
 
 from ..database.session import AsyncSessionLocal
 from ..database.repository import UserRepository
-from ..competitions.disciplines import discipline_label
+from ..competitions.disciplines import discipline_label, sort_discipline_codes, ALL_DISCIPLINE_CODES
+from ..competitions.regions import sort_region_keys
 from ..i18n import DEFAULT_LANGUAGE, get_text
 from .formatting import status_section
 from .keyboards import settings_keyboard
@@ -50,10 +51,18 @@ def format_user_status(
 
     if discipline_codes is None:
         discipline_codes = [d.discipline_code for d in user.disciplines]
-    labels = [discipline_label(code) for code in discipline_codes]
+    discipline_codes = sort_discipline_codes(discipline_codes)
 
     if region_keys is None:
         region_keys = [r.region_key for r in user.regions]
+    region_keys = sort_region_keys(region_keys)
+
+    # "All" when nothing is selected (no filter) or when every available
+    # discipline is selected — in both cases the status shows a single word.
+    if not discipline_codes or set(discipline_codes) >= set(ALL_DISCIPLINE_CODES):
+        labels: list[str] = []
+    else:
+        labels = [discipline_label(code) for code in discipline_codes]
 
     return (
         f"{get_text(language, 'status.header')}\n\n"

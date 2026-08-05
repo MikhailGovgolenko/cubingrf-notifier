@@ -1,13 +1,21 @@
 from datetime import datetime
 from types import SimpleNamespace
 
-from cubingrf_notifier.bot.competitions import _format_competition, _format_date, _format_competitions
+from cubingrf_notifier.bot.competitions import (
+    _format_competition,
+    _format_date,
+    _format_date_range,
+    _format_competitions,
+    CARD_SEPARATOR,
+)
 from cubingrf_notifier.bot.keyboards import competitions_keyboard
+from cubingrf_notifier.competitions.disciplines import ALL_DISCIPLINE_CODES
 
 
 def _comp(
     name="Moscow Open",
     date=datetime(2026, 8, 7),
+    end_date=None,
     location="Москва, Москва",
     disciplines=None,
     reg_status="open",
@@ -16,6 +24,7 @@ def _comp(
     return SimpleNamespace(
         name=name,
         date=date,
+        end_date=end_date,
         location=location,
         disciplines=disciplines or [],
         reg_status=reg_status,
@@ -70,6 +79,47 @@ def test_competition_card_all_disciplines_listed():
     assert "+" not in text.split("🧩")[1]
 
 
+def test_card_disciplines_follow_catalog_order():
+    shuffled = ["333mbf", "sq1", "333", "pyram", "clock", "555bf"]
+    text = _format_competition(_comp(disciplines=shuffled), "ru")
+    labels = [ALL_DISCIPLINE_CODES]  # catalog order is the single source
+    assert "🧩 3x3 • Clock • Pyraminx • Square-1 • 5BLD • MBLD" in text
+
+
+def test_date_range_single_day():
+    d = datetime(2026, 8, 7)
+    assert _format_date_range(d, None, "ru") == "7 августа 2026"
+    assert _format_date_range(d, d, "ru") == "7 августа 2026"
+    assert _format_date_range(d, datetime(2026, 8, 6), "ru") == "7 августа 2026"
+
+
+def test_date_range_same_month():
+    start = datetime(2026, 12, 4)
+    end = datetime(2026, 12, 6)
+    assert _format_date_range(start, end, "ru") == "4–6 декабря 2026"
+    assert _format_date_range(start, end, "en") == "4–6 December 2026"
+
+
+def test_date_range_cross_month():
+    start = datetime(2026, 12, 28)
+    end = datetime(2027, 1, 3)
+    assert _format_date_range(start, end, "ru") == "28 декабря 2026 — 3 января 2027"
+    assert _format_date_range(start, end, "en") == "28 December 2026 — 3 January 2027"
+
+
+def test_competition_card_date_range_shown():
+    text = _format_competition(
+        _comp(date=datetime(2026, 12, 4), end_date=datetime(2026, 12, 6)),
+        "ru",
+    )
+    assert "📆 4–6 декабря 2026" in text
+
+
+def test_competition_card_single_date_unchanged():
+    text = _format_competition(_comp(date=datetime(2026, 8, 7), end_date=None), "ru")
+    assert "📆 7 августа 2026" in text
+
+
 def test_competition_card_city_only_location():
     text = _format_competition(_comp(location="Московская область, Щёлково"), "ru")
     assert "📍 Щёлково" in text
@@ -78,7 +128,7 @@ def test_competition_card_city_only_location():
 def test_format_competitions_full_width_separator():
     comps = [_comp(name="A"), _comp(name="B")]
     text = _format_competitions(comps, "ru")
-    assert "─" * 30 in text
+    assert CARD_SEPARATOR in text
     assert "---" not in text
 
 

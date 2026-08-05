@@ -24,6 +24,18 @@ RU_MONTHS = {
 # Locate "<day> ... <month> <year>" inside a human-readable date string.
 _DATE_RE = re.compile(r"(\d{1,2})[^а-яё]*?([а-яё]+)[^\d]*?(\d{4})", re.IGNORECASE)
 
+# Same-month range: "7 - 9 августа 2026".
+_RANGE_DAY_RE = re.compile(
+    r"(\d{1,2})\s*(?:[–—-]|до)\s*(\d{1,2})\s+([а-яё]+)\s+(\d{4})",
+    re.IGNORECASE,
+)
+
+# Cross-month/year range: "28 декабря 2026 - 3 января 2027".
+_RANGE_FULL_RE = re.compile(
+    r"(\d{1,2})\s+([а-яё]+)\s+(\d{4})\s*(?:[–—-]|до)\s*(\d{1,2})\s+([а-яё]+)\s+(\d{4})",
+    re.IGNORECASE,
+)
+
 # Registration availability detected in a competition card's status text.
 _OPEN = "open"
 _SCHEDULED = "scheduled"
@@ -41,15 +53,42 @@ def parse_russian_date(text: str) -> Optional[datetime]:
     match = _DATE_RE.search(text)
     if not match:
         return None
-    day = int(match.group(1))
-    month = RU_MONTHS.get(match.group(2).lower())
-    year = int(match.group(3))
+    return _build_date(int(match.group(1)), RU_MONTHS.get(match.group(2).lower()), int(match.group(3)))
+
+
+def _build_date(day: int, month: Optional[int], year: int) -> Optional[datetime]:
     if not month:
         return None
     try:
         return datetime(year, month, day)
     except ValueError:
         return None
+
+
+def parse_russian_date_range(text: str) -> tuple[Optional[datetime], Optional[datetime]]:
+    """Parse a Russian date range into (start, end) datetimes.
+
+    Handles single dates ('22 августа 2026' -> end=None), same-month ranges
+    ('7 - 9 августа 2026') and cross-month/year ranges ('28 декабря 2026 -
+    3 января 2027'). Returns (None, None) when parsing fails (never raises).
+    """
+    start = parse_russian_date(text)
+    if start is None:
+        return None, None
+
+    m = _RANGE_FULL_RE.search(text)
+    if m:
+        end = _build_date(int(m.group(4)), RU_MONTHS.get(m.group(5).lower()), int(m.group(6)))
+        if end is not None:
+            return start, end
+
+    m = _RANGE_DAY_RE.search(text)
+    if m:
+        end = _build_date(int(m.group(2)), start.month, start.year)
+        if end is not None:
+            return start, end
+
+    return start, None
 
 
 def extract_external_id(url: str) -> Optional[str]:
@@ -140,11 +179,16 @@ class CubingRFHtmlScraper(CompetitionSource):
             disciplines = self._extract_disciplines(card)
             reg_status = self._extract_reg_status(card)
 
+            start_date, end_date = None, None
+            if date_el is not None:
+                start_date, end_date = parse_russian_date_range(date_el.text())
+
             return CompetitionDTO(
                 external_id=external_id,
                 name=name_el.text().strip() if name_el is not None else external_id,
                 location=location,
-                date=parse_russian_date(date_el.text()) if date_el is not None else None,
+                date=start_date,
+                end_date=end_date,
                 url=link,
                 disciplines=disciplines,
                 reg_status=reg_status,

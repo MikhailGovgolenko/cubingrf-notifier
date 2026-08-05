@@ -11,6 +11,17 @@ from ..database.models import Competition
 logger = logging.getLogger(__name__)
 
 
+def _dates_differ(current, new) -> bool:
+    """True when the stored and freshly parsed date differ.
+
+    Stored values come back timezone-aware from the DB while the parsed DTO
+    values are naive, so compare on the bare date to avoid type issues.
+    """
+    if current is None or new is None:
+        return current is not new
+    return current.date() != new.date()
+
+
 class CompetitionService:
     """Business logic for competitions. Decoupled from the data source."""
 
@@ -36,8 +47,18 @@ class CompetitionService:
                     logger.info(
                         "Updated reg_status for %s (%s): %s",
                         existing.name,
-                        dto.external_id,
+                        existing.external_id,
                         dto.reg_status,
+                    )
+                if _dates_differ(existing.date, dto.date) or _dates_differ(existing.end_date, dto.end_date):
+                    existing.date = dto.date
+                    existing.end_date = dto.end_date
+                    logger.info(
+                        "Updated dates for %s (%s): %s - %s",
+                        existing.name,
+                        existing.external_id,
+                        dto.date,
+                        dto.end_date,
                     )
                 continue
             try:

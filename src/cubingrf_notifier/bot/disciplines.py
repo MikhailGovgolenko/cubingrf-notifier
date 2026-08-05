@@ -5,7 +5,11 @@ from aiogram.types import CallbackQuery
 
 from ..database.session import AsyncSessionLocal
 from ..database.repository import UserRepository
-from ..competitions.disciplines import discipline_label, ALL_DISCIPLINE_CODES
+from ..competitions.disciplines import (
+    discipline_label,
+    sort_discipline_codes,
+    ALL_DISCIPLINE_CODES,
+)
 from ..i18n import get_text
 from .formatting import selection_screen_text
 from .keyboards import (
@@ -34,7 +38,7 @@ def _disciplines_text(selected: list[str], language: str = "ru") -> str:
     return selection_screen_text(
         get_text(language, "disciplines.title"),
         get_text(language, "disciplines.none"),
-        [discipline_label(code) for code in selected],
+        [discipline_label(code) for code in sort_discipline_codes(selected)],
     )
 
 

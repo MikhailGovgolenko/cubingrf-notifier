@@ -41,6 +41,7 @@ class Competition(Base):
     name = Column(String(512), nullable=False)
     location = Column(String(255), nullable=True)
     date = Column(DateTime(timezone=True), nullable=True)
+    end_date = Column(DateTime(timezone=True), nullable=True)
     url = Column(String(1024), nullable=True)
     disciplines = Column(JSON, nullable=True)
     # Registration availability: 'open' | 'scheduled' | 'closed' | None (unknown).

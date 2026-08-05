@@ -9,6 +9,7 @@ class CompetitionDTO:
     name: str
     location: Optional[str] = None
     date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
     url: Optional[str] = None
     disciplines: List[str] = field(default_factory=list)
     # Registration availability: 'open' | 'scheduled' | 'closed' | None (unknown).
