@@ -3,6 +3,7 @@ from types import SimpleNamespace
 from cubingrf_notifier.bot.user_status import format_user_status
 from cubingrf_notifier.bot.keyboards import disciplines_keyboard, main_menu_keyboard
 from cubingrf_notifier.competitions.disciplines import DISCIPLINES, ALL_DISCIPLINE_CODES
+from cubingrf_notifier.competitions.regions import ALL_REGION_KEYS
 from cubingrf_notifier.i18n import get_text
 
 
@@ -82,6 +83,38 @@ def test_status_regions_from_relationship():
 def test_status_regions_empty_means_all():
     text = format_user_status(_user(regions=["Москва"]), region_keys=[])
     assert "Регионы: Все" in text
+
+
+def test_status_all_regions_shows_all_ru():
+    user = _user(regions=list(ALL_REGION_KEYS))
+    text = format_user_status(user)
+    assert "Регионы: Все" in text
+    assert "• " not in text
+
+
+def test_status_all_regions_shows_all_en():
+    user = _user(regions=list(ALL_REGION_KEYS))
+    text = format_user_status(user, language="en")
+    assert "Regions: All" in text
+    assert "• " not in text
+
+
+def test_status_single_region_shows_name():
+    user = _user(regions=["Москва"])
+    text = format_user_status(user)
+    assert "Регионы: Все" not in text
+    assert "• Москва" in text
+
+
+def test_status_few_regions_shows_list_in_catalog_order():
+    user = _user(regions=["Омская область", "Москва", "Республика Коми"])
+    text = format_user_status(user)
+    assert "Регионы: Все" not in text
+    assert "Регионы:" in text
+    assert "• Москва" in text
+    assert "• Омская область" in text
+    assert "• Республика Коми" in text
+    assert text.index("• Москва") < text.index("• Омская область") < text.index("• Республика Коми")
 
 
 def test_status_english():
