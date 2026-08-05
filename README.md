@@ -1,24 +1,46 @@
-cubingrf-notifier
-=================
+# cubingrf-notifier
 
-Telegram notifier for CubingRF competitions.
+<p align="center">
+  <img src="assets/logo.svg" alt="cubingrf-notifier logo" width="220">
+</p>
 
-Бот автоматически отслеживает новые соревнования по спидкубингу на сайте
-cubingrf.org и уведомляет подписанных пользователей.
+Telegram-бот, который автоматически отслеживает новые соревнования на
+[cubingrf.org](https://cubingrf.org) и уведомляет подписанных пользователей.
+
+## Возможности
+
+- 🔔 Уведомления о новых соревнованиях
+- ⏰ Напоминания об открытии регистрации
+- 🌍 Фильтрация по регионам
+- 🏆 Просмотр ближайших соревнований
+- ⚙️ Настройка уведомлений прямо в Telegram
 
 ## Запуск
 
-Предварительно скопируйте `.env.example` в `.env` и заполните `TELEGRAM_TOKEN`:
+Сначала скопируйте файл с примером настроек:
 
 ```bash
 cp .env.example .env
 ```
 
-Запуск (построит образ, поднимет PostgreSQL, применит миграции и запустит бота):
+Заполните в `.env` как минимум:
+
+```text
+TELEGRAM_TOKEN=...
+```
+
+Запуск проекта:
 
 ```bash
 docker compose up --build
 ```
+
+Эта команда:
+
+- собирает Docker-образ;
+- запускает PostgreSQL;
+- применяет миграции (`alembic upgrade head`);
+- запускает Telegram-бота.
 
 Остановка:
 
@@ -26,7 +48,7 @@ docker compose up --build
 docker compose down
 ```
 
-Логи:
+Просмотр логов:
 
 ```bash
 docker compose logs -f web
@@ -34,33 +56,38 @@ docker compose logs -f web
 
 ## Команды бота
 
-- `/start` — подписаться на уведомления
-- `/stop` — отписаться от уведомлений
-- `/status` — статус подписки
-- `/settings` — настройки (меню)
-- `/competitions` — ближайшие соревнования
-- `/help` — список команд
+| Команда | Описание |
+|---------|----------|
+| `/start` | Подписаться на уведомления |
+| `/stop` | Отписаться от уведомлений |
+| `/status` | Проверить статус подписки |
+| `/settings` | Открыть настройки |
+| `/competitions` | Показать ближайшие соревнования |
+| `/help` | Список команд |
 
-## Project layout
+## Структура проекта
 
 ```
-src/cubingrf_notifier — main package
+src/cubingrf_notifier
+├── bot/              # Telegram-бот (aiogram 3)
+├── competitions/     # Бизнес-логика соревнований
+├── database/         # SQLAlchemy, модели и репозитории
+├── notifications/    # Формирование и отправка уведомлений
+├── scheduler/        # APScheduler
+├── scrapers/         # Парсер cubingrf.org
+├── alembic/          # Миграции базы данных
+└── config.py         # Настройки приложения
 ```
-
-- `config.py` — настройки через pydantic-settings (`.env`)
-- `bot/` — Telegram-хендлеры и клавиатуры (aiogram 3)
-- `database/` — SQLAlchemy async модели, сессия, репозитории
-- `competitions/` — бизнес-логика и DTO соревнований
-- `scrapers/` — парсер cubingrf.org
-- `notifications/` — отправка сообщений в Telegram
-- `scheduler/` — APScheduler
-- `alembic/` — миграции БД
 
 ## База данных
 
-Миграции применяются автоматически при старте контейнера (`alembic upgrade head`).
+При запуске через Docker миграции применяются автоматически:
 
-Локально:
+```bash
+alembic upgrade head
+```
+
+При необходимости их можно выполнить вручную:
 
 ```bash
 alembic upgrade head
