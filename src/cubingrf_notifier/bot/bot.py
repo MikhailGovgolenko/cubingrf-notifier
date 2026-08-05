@@ -15,6 +15,7 @@ from .events import router as events_router
 from .regions import router as regions_router
 from .language import router as language_router
 from .keyboards import main_menu_keyboard
+from .middleware import SyncUsernameMiddleware
 
 import logging
 
@@ -31,6 +32,8 @@ bot = (
 )
 
 dp = Dispatcher()
+dp.message.outer_middleware(SyncUsernameMiddleware())
+dp.callback_query.outer_middleware(SyncUsernameMiddleware())
 dp.include_router(menu_router)
 dp.include_router(settings_router)
 dp.include_router(events_router)
@@ -55,11 +58,8 @@ async def cmd_start(message: Message):
 
     async with AsyncSessionLocal() as sess:
         user_repo = UserRepository(sess)
-        existing = await user_repo.get_user_by_telegram_id(user.id)
-        if existing is None:
-            await user_repo.create_user(user.id)
-        else:
-            await user_repo.set_notifications_enabled(user.id, True)
+        await user_repo.register_user(user.id, user.username, user.language_code)
+        await user_repo.set_notifications_enabled(user.id, True)
         await sess.commit()
         language = await user_repo.get_user_language(user.id)
 

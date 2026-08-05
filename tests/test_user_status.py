@@ -16,7 +16,7 @@ def _user(notifications_enabled=True, events=(), regions=()):
 
 
 def test_status_new_user_defaults():
-    text = format_user_status(_user())
+    text = format_user_status(_user(), language="ru")
     assert "Уведомления: ✅" in text
     assert "Язык: 🇷🇺 Русский" in text
     assert "Регионы: Все" in text
@@ -24,12 +24,12 @@ def test_status_new_user_defaults():
 
 
 def test_status_notifications_disabled():
-    text = format_user_status(_user(notifications_enabled=False))
+    text = format_user_status(_user(notifications_enabled=False), language="ru")
     assert "Уведомления: ❌" in text
 
 
 def test_status_disciplines_labels():
-    text = format_user_status(_user(events=["333", "minx", "333bf"]))
+    text = format_user_status(_user(events=["333", "minx", "333bf"]), language="ru")
     assert "Дисциплины:" in text
     assert "• 3x3x3" in text
     assert "• Megaminx" in text
@@ -38,14 +38,14 @@ def test_status_disciplines_labels():
 
 def test_status_disciplines_codes_override_relationship():
     user = _user(events=["333"])
-    text = format_user_status(user, event_codes=["222"])
+    text = format_user_status(user, event_codes=["222"], language="ru")
     assert "• 2x2x2" in text
     assert "3x3x3" not in text
 
 
 def test_status_all_disciplines_shows_all_ru():
     user = _user(events=list(ALL_DISCIPLINE_CODES))
-    text = format_user_status(user)
+    text = format_user_status(user, language="ru")
     assert "Дисциплины: Все" in text
     assert "• " not in text
 
@@ -59,14 +59,14 @@ def test_status_all_disciplines_shows_all_en():
 
 def test_status_partial_disciplines_lists_selection():
     user = _user(events=["333", "minx", "clock"])
-    text = format_user_status(user)
+    text = format_user_status(user, language="ru")
     assert "Дисциплины: Все" not in text
     assert "Дисциплины:" in text
 
 
 def test_status_discipline_labels_follow_catalog_order():
     user = _user(events=["minx", "333", "clock"])
-    text = format_user_status(user)
+    text = format_user_status(user, language="ru")
     disci = text.split("Дисциплины:", 1)[1]
     labels = [name for name in ("3x3x3", "Clock", "Megaminx") if f"• {name}" in disci]
     assert labels == ["3x3x3", "Clock", "Megaminx"]
@@ -74,20 +74,20 @@ def test_status_discipline_labels_follow_catalog_order():
 
 
 def test_status_regions_from_relationship():
-    text = format_user_status(_user(regions=["Москва", "Санкт-Петербург"]))
+    text = format_user_status(_user(regions=["Москва", "Санкт-Петербург"]), language="ru")
     assert "Регионы:" in text
     assert "• Москва" in text
     assert "• Санкт-Петербург" in text
 
 
 def test_status_regions_empty_means_all():
-    text = format_user_status(_user(regions=["Москва"]), region_keys=[])
+    text = format_user_status(_user(regions=["Москва"]), region_keys=[], language="ru")
     assert "Регионы: Все" in text
 
 
 def test_status_all_regions_shows_all_ru():
     user = _user(regions=list(ALL_REGION_KEYS))
-    text = format_user_status(user)
+    text = format_user_status(user, language="ru")
     assert "Регионы: Все" in text
     assert "• " not in text
 
@@ -101,14 +101,14 @@ def test_status_all_regions_shows_all_en():
 
 def test_status_single_region_shows_name():
     user = _user(regions=["Москва"])
-    text = format_user_status(user)
+    text = format_user_status(user, language="ru")
     assert "Регионы: Все" not in text
     assert "• Москва" in text
 
 
 def test_status_few_regions_shows_list_in_catalog_order():
     user = _user(regions=["Омская область", "Москва", "Республика Коми"])
-    text = format_user_status(user)
+    text = format_user_status(user, language="ru")
     assert "Регионы: Все" not in text
     assert "Регионы:" in text
     assert "• Москва" in text

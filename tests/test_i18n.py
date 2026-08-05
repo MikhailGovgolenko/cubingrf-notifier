@@ -2,6 +2,7 @@ from cubingrf_notifier.i18n import (
     available_languages,
     get_text,
     all_keys_present,
+    get_user_language,
     DEFAULT_LANGUAGE,
 )
 
@@ -10,8 +11,20 @@ def test_available_languages():
     assert available_languages() == ("ru", "en")
 
 
-def test_default_language_is_russian():
-    assert DEFAULT_LANGUAGE == "ru"
+def test_default_language_is_english():
+    assert DEFAULT_LANGUAGE == "en"
+
+
+def test_user_language_detects_russian():
+    assert get_user_language("ru") == "ru"
+
+
+def test_user_language_falls_back_to_english():
+    assert get_user_language("en") == "en"
+    assert get_user_language("de") == "en"
+    assert get_user_language("uk") == "en"
+    assert get_user_language(None) == "en"
+    assert get_user_language("") == "en"
 
 
 def test_ru_text():
@@ -32,8 +45,8 @@ def test_unknown_key_falls_back_to_default_then_key():
     assert get_text("ru", "definitely.missing.key") == "definitely.missing.key"
 
 
-def test_unknown_language_falls_back_to_ru():
-    assert get_text("zz", "menu.competitions") == "📅 Соревнования"
+def test_unknown_language_falls_back_to_english():
+    assert get_text("zz", "menu.competitions") == "📅 Competitions"
 
 
 def test_all_keys_present():

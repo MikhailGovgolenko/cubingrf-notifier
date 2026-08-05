@@ -25,6 +25,7 @@ class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
     telegram_id = Column(BigInteger, unique=True, nullable=False)
+    username = Column(String(64), nullable=True)
     notifications_enabled = Column(Boolean, nullable=False, default=True, server_default="true")
     # Interface language (two-letter code, see i18n.DEFAULT_LANGUAGE).
     language = Column(String(10), nullable=False, default="ru", server_default="ru")

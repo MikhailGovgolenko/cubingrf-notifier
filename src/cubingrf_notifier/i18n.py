@@ -9,7 +9,16 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-DEFAULT_LANGUAGE = "ru"
+DEFAULT_LANGUAGE = "en"
+
+
+def get_user_language(language_code: str | None) -> str:
+    """Map a Telegram interface language code to a supported UI language.
+
+    Russian stays Russian; anything else — English, German, unknown codes and
+    a missing code (None) — falls back to English.
+    """
+    return "ru" if language_code == "ru" else "en"
 
 _LANGUAGES = ("ru", "en")
 _LOCALES_DIR = Path(__file__).resolve().parent / "locales"

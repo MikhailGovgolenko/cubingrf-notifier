@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 
 from .models import Competition, User, Notification, UserEvent, UserRegion
 from ..competitions.models import CompetitionDTO
+from ..i18n import DEFAULT_LANGUAGE, get_user_language
 
 logger = logging.getLogger(__name__)
 
@@ -26,10 +27,48 @@ class UserRepository:
         await self.session.flush()
         return user
 
+    async def register_user(
+        self,
+        telegram_id: int,
+        username: Optional[str] = None,
+        language_code: Optional[str] = None,
+    ) -> User:
+        """Register a user on first contact, saving their username and the
+        interface language detected from Telegram. Existing users only get
+        their username refreshed — a manually chosen language is preserved.
+        """
+        user = await self.get_user_by_telegram_id(telegram_id)
+        if user is None:
+            user = User(
+                telegram_id=telegram_id,
+                username=username,
+                language=get_user_language(language_code),
+            )
+            self.session.add(user)
+        elif username and user.username != username:
+            user.username = username
+        await self.session.flush()
+        return user
+
     async def get_user_by_telegram_id(self, telegram_id: int) -> Optional[User]:
         q = select(User).where(User.telegram_id == telegram_id)
         res = await self.session.execute(q)
         return res.scalar_one_or_none()
+
+    async def sync_username(self, telegram_id: int, username: str) -> bool:
+        """Persist ``username`` for an existing user when it changed.
+
+        No-op (False) when the user is unknown or the value is unchanged or
+        empty. Only touches ``username`` — never the chosen language.
+        """
+        if not username:
+            return False
+        user = await self.get_user_by_telegram_id(telegram_id)
+        if user is None or user.username == username:
+            return False
+        user.username = username
+        await self.session.flush()
+        return True
 
     async def set_notifications_enabled(self, telegram_id: int, enabled: bool) -> Optional[User]:
         """Flip subscription on/off. Returns the user or None if not registered."""
@@ -41,9 +80,9 @@ class UserRepository:
         return user
 
     async def get_user_language(self, telegram_id: int) -> str:
-        """The user's interface language code ('ru' by default)."""
+        """The user's interface language code (default language if unregistered)."""
         user = await self.get_user_by_telegram_id(telegram_id)
-        return user.language if user is not None else "ru"
+        return user.language if user is not None else DEFAULT_LANGUAGE
 
     async def set_user_language(self, telegram_id: int, language: str) -> Optional[User]:
         """Save the user's interface language. Returns None if not registered."""
