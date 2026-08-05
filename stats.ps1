@@ -1,4 +1,6 @@
 $sql = @"
+SET TIME ZONE 'Europe/Moscow';
+
 SELECT line
 FROM (
     SELECT 1 AS sort, '==============================' AS line
@@ -22,15 +24,15 @@ FROM (
     SELECT 8, 'English users:            ' || COUNT(*) FILTER (WHERE language = 'en')::text
         FROM users
     UNION ALL
-    SELECT 9, 'With username:            ' || COUNT(*) FILTER (WHERE username IS NOT NULL)::text
+    SELECT 9, 'With username:            ' || COUNT(*) FILTER (WHERE username IS NOT NULL AND username != '')::text
         FROM users
     UNION ALL
     SELECT 10, ''
     UNION ALL
-    SELECT 11, 'First user:               ' || MIN(created_at)::timestamp::text
+    SELECT 11, 'First user:               ' || MIN(created_at)::text
         FROM users
     UNION ALL
-    SELECT 12, 'Latest user:              ' || MAX(created_at)::timestamp::text
+    SELECT 12, 'Latest user:              ' || MAX(created_at)::text
         FROM users
     UNION ALL
     SELECT 13, ''
@@ -45,8 +47,8 @@ ORDER BY sort;
 
 
 SELECT
-    u.created_at::timestamp AS created_at,
-    COALESCE('@' || u.username, '-') AS username,
+    u.created_at AS created_at,
+    COALESCE(u.username, '-') AS username,
     u.telegram_id,
     u.language AS lang,
     CASE
