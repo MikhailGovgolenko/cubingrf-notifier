@@ -46,6 +46,8 @@ class Competition(Base):
     disciplines = Column(JSON, nullable=True)
     # Registration availability: 'open' | 'scheduled' | 'closed' | None (unknown).
     reg_status = Column(String(20), nullable=True)
+    # When registration opens (tz-aware UTC; None when the site gives no time).
+    registration_start_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     notifications = relationship("Notification", back_populates="competition", cascade="all, delete-orphan")
@@ -75,14 +77,21 @@ class UserRegion(Base):
     user = relationship("User", back_populates="regions")
 
 class Notification(Base):
+    """A notification already delivered to a user for a competition.
+
+    ``kind`` distinguishes notification types ('new' for a newly found
+    competition, 'reg_soon' for a "registration opens in 30 minutes" reminder).
+    The unique constraint covers the kind so each type is sent at most once.
+    """
     __tablename__ = "notifications"
     __table_args__ = (
-        # A user should never receive the same competition twice.
-        UniqueConstraint("user_id", "competition_id", name="uq_notification_user_competition"),
+        UniqueConstraint("user_id", "competition_id", "kind", name="uq_notification_user_competition_kind"),
     )
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
     competition_id = Column(Integer, ForeignKey("competitions.id"), nullable=False)
+    # 'new' | 'reg_soon' — see docstring above.
+    kind = Column(String(20), nullable=False, default="new", server_default="new")
     sent_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     user = relationship("User", back_populates="notifications")

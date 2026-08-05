@@ -1,5 +1,6 @@
 from typing import List
 import logging
+from datetime import timezone
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,6 +21,18 @@ def _dates_differ(current, new) -> bool:
     if current is None or new is None:
         return current is not new
     return current.date() != new.date()
+
+
+def _start_at_differ(current, new) -> bool:
+    """True when the stored and freshly parsed registration start differ.
+
+    Both values are tz-aware; compare instants in UTC.
+    """
+    if current is None or new is None:
+        return current is not new
+    if current.tzinfo is None or new.tzinfo is None:
+        return current != new
+    return current.astimezone(timezone.utc) != new.astimezone(timezone.utc)
 
 
 class CompetitionService:
@@ -59,6 +72,14 @@ class CompetitionService:
                         existing.external_id,
                         dto.date,
                         dto.end_date,
+                    )
+                if _start_at_differ(existing.registration_start_at, dto.registration_start_at):
+                    existing.registration_start_at = dto.registration_start_at
+                    logger.info(
+                        "Updated registration start for %s (%s): %s",
+                        existing.name,
+                        existing.external_id,
+                        dto.registration_start_at,
                     )
                 continue
             try:

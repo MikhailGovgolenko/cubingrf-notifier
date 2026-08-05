@@ -17,6 +17,7 @@ from .scheduler.jobs import create_scheduler
 
 from .notifications.telegram import TelegramNotifier
 from .notifications.matcher import should_notify_user
+from .notifications.reg_reminder import check_registration_reminders
 
 from .bot.bot import dp, bot
 
@@ -29,74 +30,72 @@ logger = logging.getLogger(__name__)
 
 
 async def check_and_notify() -> None:
-    """Fetch new competitions and notify all subscribed users."""
+    """Fetch new competitions, notify users, and fire registration reminders."""
     async with AsyncSessionLocal() as sess:
         service = CompetitionService(CubingRFHtmlScraper(), sess)
         new = await service.check_new_competitions()
 
-        if not new:
-            await sess.commit()
-            logger.info("No new competitions")
-            return
+        if new:
+            logger.info("New competitions found: %d", len(new))
 
-        logger.info("New competitions found: %d", len(new))
+            notifier = TelegramNotifier()
+            user_repo = UserRepository(sess)
+            notif_repo = NotificationRepository(sess)
 
-        notifier = TelegramNotifier()
-        user_repo = UserRepository(sess)
-        notif_repo = NotificationRepository(sess)
+            users = await user_repo.list_enabled_users()
+            if users:
+                # Preload each user's region/discipline preferences for filtering.
+                user_regions = {
+                    u.telegram_id: await user_repo.get_user_regions(u.telegram_id)
+                    for u in users
+                }
+                user_disciplines = {
+                    u.telegram_id: await user_repo.get_user_disciplines(u.telegram_id)
+                    for u in users
+                }
 
-        users = await user_repo.list_enabled_users()
-        if not users:
-            logger.info("No subscribed users; competitions stored, nothing to notify")
+                for comp in new:
+                    for user in users:
+                        try:
+                            if not should_notify_user(
+                                user,
+                                comp,
+                                user_region_keys=user_regions[user.telegram_id],
+                                user_discipline_codes=user_disciplines[user.telegram_id],
+                            ):
+                                continue
+                            logger.info(
+                                "Sending notification competition=%s user=%s",
+                                comp.id,
+                                user.telegram_id,
+                            )
+                            await notifier.send_competition(
+                                user.telegram_id,
+                                comp,
+                                language=user.language or "ru",
+                            )
+                            await notif_repo.mark_sent(user.id, comp.id)
+                            logger.info(
+                                "Notification sent competition=%s user=%s",
+                                comp.id,
+                                user.telegram_id,
+                            )
+                        except Exception:
+                            logger.exception(
+                                "Failed to notify user competition=%s telegram_id=%s",
+                                comp.id,
+                                user.telegram_id,
+                            )
+            else:
+                logger.info("No subscribed users; competitions stored, nothing to notify")
+
             await sess.commit()
             await notifier.close()
-            return
+        else:
+            await sess.commit()
+            logger.info("No new competitions")
 
-        # Preload each user's region/discipline preferences for filtering.
-        user_regions = {
-            u.telegram_id: await user_repo.get_user_regions(u.telegram_id)
-            for u in users
-        }
-        user_disciplines = {
-            u.telegram_id: await user_repo.get_user_disciplines(u.telegram_id)
-            for u in users
-        }
-
-        for comp in new:
-            for user in users:
-                try:
-                    if not should_notify_user(
-                        user,
-                        comp,
-                        user_region_keys=user_regions[user.telegram_id],
-                        user_discipline_codes=user_disciplines[user.telegram_id],
-                    ):
-                        continue
-                    logger.info(
-                        "Sending notification competition=%s user=%s",
-                        comp.id,
-                        user.telegram_id,
-                    )
-                    await notifier.send_competition(
-                        user.telegram_id,
-                        comp,
-                        language=user.language or "ru",
-                    )
-                    await notif_repo.mark_sent(user.id, comp.id)
-                    logger.info(
-                        "Notification sent competition=%s user=%s",
-                        comp.id,
-                        user.telegram_id,
-                    )
-                except Exception:
-                    logger.exception(
-                        "Failed to notify user competition=%s telegram_id=%s",
-                        comp.id,
-                        user.telegram_id,
-                    )
-
-        await sess.commit()
-        await notifier.close()
+    await check_registration_reminders()
 
 
 async def main() -> None:

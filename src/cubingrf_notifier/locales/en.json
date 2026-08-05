@@ -51,6 +51,7 @@
   "competitions.page": "{page}/{total}",
 
   "notifications.title": "🆕 New competition!",
+  "notifications.reg_soon": "🔔 Registration opens in 30 minutes!",
 
   "back": "◀️ Back",
   "unknown_date": "date unknown"

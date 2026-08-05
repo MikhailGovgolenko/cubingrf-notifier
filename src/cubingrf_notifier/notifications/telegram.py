@@ -2,7 +2,7 @@ from aiogram import Bot
 
 from ..config import settings
 from ..database.models import Competition
-from .competition_formatter import format_competition_notification
+from .competition_formatter import format_competition_notification, format_registration_reminder
 
 
 class TelegramNotifier:
@@ -17,8 +17,12 @@ class TelegramNotifier:
         chat_id: int,
         comp: Competition,
         language: str = "ru",
+        kind: str = "new",
     ) -> None:
-        text = format_competition_notification(comp, language)
+        if kind == "reg_soon":
+            text = format_registration_reminder(comp, language)
+        else:
+            text = format_competition_notification(comp, language)
         await self.bot.send_message(chat_id, text)
 
     async def close(self) -> None:

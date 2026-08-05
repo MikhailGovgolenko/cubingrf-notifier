@@ -126,6 +126,7 @@ class CompetitionRepository:
             url=dto.url,
             disciplines=dto.disciplines or [],
             reg_status=dto.reg_status,
+            registration_start_at=dto.registration_start_at,
         )
         self.session.add(comp)
         await self.session.flush()
@@ -163,30 +164,50 @@ class CompetitionRepository:
         res = await self.session.execute(q)
         return list(res.scalars().all())
 
+    async def list_competitions_with_registration_start(self) -> List[Competition]:
+        """Competitions that have a known registration opening moment.
+
+        Filtering purely on the column; the "how far from now" check lives in
+        the reminder logic so it stays unit-testable.
+        """
+        q = (
+            select(Competition)
+            .where(Competition.registration_start_at.is_not(None))
+            .order_by(Competition.registration_start_at.asc())
+        )
+        res = await self.session.execute(q)
+        return list(res.scalars().all())
+
+
+# Notification kinds stored in the notifications table.
+KIND_NEW = "new"
+KIND_REG_SOON = "reg_soon"
+
 
 class NotificationRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
 
-    async def was_sent(self, user_id: int, competition_id: int) -> bool:
+    async def was_sent(self, user_id: int, competition_id: int, kind: str = KIND_NEW) -> bool:
         q = select(func.count()).select_from(Notification).where(
             Notification.user_id == user_id,
             Notification.competition_id == competition_id,
+            Notification.kind == kind,
         )
         res = await self.session.execute(q)
         return res.scalar_one() > 0
 
-    async def mark_sent(self, user_id: int, competition_id: int) -> Notification:
-        """Record that a notification was sent for a (user, competition) pair.
+    async def mark_sent(self, user_id: int, competition_id: int, kind: str = KIND_NEW) -> Notification:
+        """Record that a notification of the given kind was sent.
 
-        The unique constraint on (user_id, competition_id) guarantees no
-        duplicate notifications. A duplicate insert is rolled back via a
-        savepoint so it never affects the surrounding transaction.
+        The unique constraint on (user_id, competition_id, kind) guarantees no
+        duplicate notifications per kind. A duplicate insert is rolled back via
+        a savepoint so it never affects the surrounding transaction.
         """
-        notif = Notification(user_id=user_id, competition_id=competition_id)
+        notif = Notification(user_id=user_id, competition_id=competition_id, kind=kind)
         try:
             async with self.session.begin_nested():
                 self.session.add(notif)
         except IntegrityError:
-            logger.info("Notification already sent for user %s, competition %s", user_id, competition_id)
+            logger.info("Notification already sent for user %s, competition %s, kind %s", user_id, competition_id, kind)
         return notif

@@ -109,3 +109,9 @@ def format_competition_notification(competition, language: str = "ru") -> str:
     """Full push-notification text: localized header + the standard card."""
     header = get_text(language, "notifications.title")
     return f"{header}\n\n{format_competition_card(competition, language)}"
+
+
+def format_registration_reminder(competition, language: str = "ru") -> str:
+    """Text for the "registration opens in 30 minutes" reminder."""
+    header = get_text(language, "notifications.reg_soon")
+    return f"{header}\n\n{format_competition_card(competition, language)}"

@@ -1,7 +1,8 @@
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 from urllib.parse import urlparse
 
+import asyncio
 import httpx
 import logging
 import re
@@ -40,6 +41,53 @@ _RANGE_FULL_RE = re.compile(
 _OPEN = "open"
 _SCHEDULED = "scheduled"
 _CLOSED = "closed"
+
+# Moscow time is UTC+3 all year; the site states offsets explicitly ('МСК+0',
+# 'МСК+4', ...) next to the registration window.
+MSK_UTC_OFFSET = 3
+
+# "Регистрация участников с 16 августа 2026 10:00 по ... (часовой пояс: МСК+0, ...)".
+_REG_START_RE = re.compile(
+    r"Регистрация участников с\s+(\d{1,2})\s+([а-яё]+)\s+(\d{4})(?:\s+(\d{1,2}):(\d{2}))?",
+    re.IGNORECASE,
+)
+_MSK_OFFSET_RE = re.compile(r"МСК([+-]\d{1,2})", re.IGNORECASE)
+
+
+def parse_registration_start(text: str) -> Optional[datetime]:
+    """Parse the registration opening moment into a tz-aware UTC datetime.
+
+    Handles 'Регистрация участников с 16 августа 2026 10:00 по ...' where the
+    clock time may be absent and the time zone is given as 'МСК+N'. Returns
+    None when there is no match or when no clock time is provided (a bare date
+    cannot schedule a 30-minute reminder), never raises.
+    """
+    if not text:
+        return None
+    match = _REG_START_RE.search(text)
+    if not match:
+        return None
+    month = RU_MONTHS.get(match.group(2).lower())
+    if not month:
+        return None
+    if not match.group(4):
+        return None
+    try:
+        offset = MSK_UTC_OFFSET
+        tz_match = _MSK_OFFSET_RE.search(text)
+        if tz_match:
+            offset += int(tz_match.group(1))
+        local = datetime(
+            int(match.group(3)),
+            month,
+            int(match.group(1)),
+            int(match.group(4)),
+            int(match.group(5)),
+            tzinfo=timezone(timedelta(hours=offset)),
+        )
+    except ValueError:
+        return None
+    return local.astimezone(timezone.utc)
 
 
 def parse_russian_date(text: str) -> Optional[datetime]:
@@ -135,8 +183,38 @@ class CubingRFHtmlScraper(CompetitionSource):
             seen.add(dto.external_id)
             items.append(dto)
 
+        await self._enrich_registration_times(items)
+
         logger.info("Parsed %d competitions from %s", len(items), self._competitions_url)
         return items
+
+    async def _enrich_registration_times(self, items: List[CompetitionDTO]) -> None:
+        """Fill registration_start_at from each competition's detail page.
+
+        Only competitions whose registration has not opened yet (status
+        'scheduled' or unknown) are enriched; a failed page fetch is skipped
+        silently so parsing never breaks.
+        """
+        pending = [item for item in items if item.reg_status in (None, _SCHEDULED)]
+        if not pending:
+            return
+        texts = await asyncio.gather(
+            *(self._fetch_registration_text(item.url) for item in pending)
+        )
+        for item, text in zip(pending, texts):
+            item.registration_start_at = parse_registration_start(text)
+
+    async def _fetch_registration_text(self, url: str) -> str:
+        """Return the detail page's registration-window text, or '' on error."""
+        html = await self._get_page(url)
+        if html is None:
+            return ""
+        tree = HTMLParser(html)
+        for el in tree.css("div"):
+            text = (el.text() or "").strip()
+            if text.startswith("Регистрация участников с") or text.startswith("Регистрация с"):
+                return text
+        return ""
 
     async def _get_page(self, url: str) -> Optional[str]:
         """Fetch page HTML; return None on any error instead of raising."""

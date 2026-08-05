@@ -51,6 +51,7 @@
   "competitions.page": "{page}/{total}",
 
   "notifications.title": "🆕 Новое соревнование!",
+  "notifications.reg_soon": "🔔 Регистрация откроется через 30 минут!",
 
   "back": "◀️ Назад",
   "unknown_date": "дата неизвестна"
