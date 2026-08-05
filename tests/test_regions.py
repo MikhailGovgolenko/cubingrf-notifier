@@ -116,7 +116,7 @@ def test_filter_by_regions_only():
 
 def test_filter_by_disciplines_only():
     comps = [_comp(disciplines=["333"]), _comp(disciplines=["222"])]
-    out = filter_competitions(comps, discipline_codes=["333"])
+    out = filter_competitions(comps, event_codes=["333"])
     assert len(out) == 1
     assert out[0].disciplines == ["333"]
 
@@ -127,7 +127,7 @@ def test_filter_combined_region_and_discipline():
         _comp(location="Москва, Москва", disciplines=["222"]),
         _comp(location="Омская область, Омск", disciplines=["333"]),
     ]
-    out = filter_competitions(comps, discipline_codes=["333"], region_keys=["Москва"])
+    out = filter_competitions(comps, event_codes=["333"], region_keys=["Москва"])
     assert len(out) == 1
     assert out[0].location == "Москва, Москва"
 

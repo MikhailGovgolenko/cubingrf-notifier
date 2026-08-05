@@ -20,7 +20,7 @@ class User(Base):
     """A Telegram user subscribed to notifications.
 
     ``notifications_enabled`` acts as the master on/off switch and is a
-    foundation for future per-user preferences (region, disciplines, time).
+    foundation for future per-user preferences (region, events, time).
     """
     __tablename__ = "users"
     id = Column(Integer, primary_key=True)
@@ -31,7 +31,7 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
-    disciplines = relationship("UserDiscipline", back_populates="user", cascade="all, delete-orphan")
+    events = relationship("UserEvent", back_populates="user", cascade="all, delete-orphan")
     regions = relationship("UserRegion", back_populates="user", cascade="all, delete-orphan")
 
 class Competition(Base):
@@ -52,17 +52,17 @@ class Competition(Base):
 
     notifications = relationship("Notification", back_populates="competition", cascade="all, delete-orphan")
 
-class UserDiscipline(Base):
-    """A single discipline the user wants to follow (normalized preference)."""
-    __tablename__ = "user_disciplines"
+class UserEvent(Base):
+    """A single event the user wants to follow (normalized preference)."""
+    __tablename__ = "user_events"
     __table_args__ = (
-        UniqueConstraint("user_id", "discipline_code", name="uq_user_discipline"),
+        UniqueConstraint("user_id", "event_code", name="uq_user_event"),
     )
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    discipline_code = Column(String(20), nullable=False)
+    event_code = Column(String(20), nullable=False)
 
-    user = relationship("User", back_populates="disciplines")
+    user = relationship("User", back_populates="events")
 
 class UserRegion(Base):
     """A single region the user wants to follow (normalized preference)."""

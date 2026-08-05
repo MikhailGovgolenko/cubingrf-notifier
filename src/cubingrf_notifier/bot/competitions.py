@@ -70,16 +70,16 @@ def _format_competitions(
 
 def filter_competitions(
     comps: List[Competition],
-    discipline_codes: List[str] | None = None,
+    event_codes: List[str] | None = None,
     region_keys: List[str] | None = None,
 ) -> List[Competition]:
-    """Apply user filters (disciplines and/or regions) to a competition list.
+    """Apply user filters (events and/or regions) to a competition list.
 
     An empty selection for either dimension means "show everything" for that
     dimension, so the two dimensions compose independently.
     """
-    if discipline_codes:
-        chosen = set(discipline_codes)
+    if event_codes:
+        chosen = set(event_codes)
         comps = [c for c in comps if chosen & set(c.disciplines or [])]
 
     if region_keys:
@@ -93,7 +93,7 @@ async def _load_page(page: int, telegram_id: int) -> Tuple[List[Competition], in
     async with AsyncSessionLocal() as sess:
         repo = CompetitionRepository(sess)
         comps = await repo.list_upcoming_competitions()
-        selected = await UserRepository(sess).get_user_disciplines(telegram_id)
+        selected = await UserRepository(sess).get_user_events(telegram_id)
         regions = await UserRepository(sess).get_user_regions(telegram_id)
         language = await UserRepository(sess).get_user_language(telegram_id)
 
@@ -102,7 +102,7 @@ async def _load_page(page: int, telegram_id: int) -> Tuple[List[Competition], in
     total_count = len(comps)
     if total_count != before:
         logger.info(
-            "Filters (telegram_id=%s): disciplines=%s regions=%s, %s/%s matched",
+            "Filters (telegram_id=%s): events=%s regions=%s, %s/%s matched",
             telegram_id, sorted(selected), sorted(regions), total_count, before,
         )
 

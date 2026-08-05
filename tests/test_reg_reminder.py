@@ -96,11 +96,11 @@ def _comp(location="Москва, Москва", disciplines=("333", "444")):
     return SimpleNamespace(location=location, disciplines=list(disciplines))
 
 
-def _user(regions=(), disciplines=(), enabled=True):
+def _user(regions=(), events=(), enabled=True):
     return SimpleNamespace(
         notifications_enabled=enabled,
         regions=[SimpleNamespace(region_key=r) for r in regions],
-        disciplines=[SimpleNamespace(discipline_code=c) for c in disciplines],
+        events=[SimpleNamespace(event_code=c) for c in events],
     )
 
 
@@ -113,7 +113,7 @@ def test_reminder_region_mismatch_skips():
 
 
 def test_reminder_discipline_matches_gets_it():
-    assert should_notify_user(_user(disciplines=["333"]), _comp()) is True
+    assert should_notify_user(_user(events=["333"]), _comp()) is True
 
 
 def test_reminder_disabled_skips():

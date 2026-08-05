@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete, or_
 from sqlalchemy.exc import IntegrityError
 
-from .models import Competition, User, Notification, UserDiscipline, UserRegion
+from .models import Competition, User, Notification, UserEvent, UserRegion
 from ..competitions.models import CompetitionDTO
 
 logger = logging.getLogger(__name__)
@@ -60,27 +60,27 @@ class UserRepository:
         res = await self.session.execute(q)
         return res.scalars().all()
 
-    async def get_user_disciplines(self, telegram_id: int) -> List[str]:
-        """Discipline codes the user selected (empty if none/not registered)."""
+    async def get_user_events(self, telegram_id: int) -> List[str]:
+        """Event codes the user selected (empty if none/not registered)."""
         user = await self.get_user_by_telegram_id(telegram_id)
         if user is None:
             return []
         q = (
-            select(UserDiscipline.discipline_code)
-            .where(UserDiscipline.user_id == user.id)
-            .order_by(UserDiscipline.discipline_code)
+            select(UserEvent.event_code)
+            .where(UserEvent.user_id == user.id)
+            .order_by(UserEvent.event_code)
         )
         res = await self.session.execute(q)
         return list(res.scalars().all())
 
-    async def set_user_disciplines(self, telegram_id: int, codes: List[str]) -> None:
-        """Replace the user's discipline selection with the given codes."""
+    async def set_user_events(self, telegram_id: int, codes: List[str]) -> None:
+        """Replace the user's event selection with the given codes."""
         user = await self.get_user_by_telegram_id(telegram_id)
         if user is None:
             user = await self.create_user(telegram_id)
-        await self.session.execute(delete(UserDiscipline).where(UserDiscipline.user_id == user.id))
+        await self.session.execute(delete(UserEvent).where(UserEvent.user_id == user.id))
         for code in codes:
-            self.session.add(UserDiscipline(user_id=user.id, discipline_code=code))
+            self.session.add(UserEvent(user_id=user.id, event_code=code))
         await self.session.flush()
 
     async def get_user_regions(self, telegram_id: int) -> List[str]:

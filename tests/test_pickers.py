@@ -8,11 +8,11 @@ from cubingrf_notifier.database.models import Base
 from cubingrf_notifier.database.repository import UserRepository
 from cubingrf_notifier.competitions.disciplines import ALL_DISCIPLINE_CODES, DISCIPLINES
 from cubingrf_notifier.competitions.regions import ALL_REGION_KEYS
-from cubingrf_notifier.bot.disciplines import (
+from cubingrf_notifier.bot.events import (
     cb_toggle,
     cb_select_all,
     cb_clear,
-    cb_disciplines_back,
+    cb_events_back,
 )
 from cubingrf_notifier.bot.regions import (
     cb_region_toggle,
@@ -20,7 +20,7 @@ from cubingrf_notifier.bot.regions import (
     cb_region_clear,
     cb_regions_back,
 )
-from cubingrf_notifier.bot.keyboards import DisciplineCB, RegionCB
+from cubingrf_notifier.bot.keyboards import EventCB, RegionCB
 from cubingrf_notifier.i18n import get_text
 
 
@@ -69,8 +69,8 @@ async def test_discipline_toggle_stays_on_picker(session_maker):
     user_id = 111
     await _create_user(session_maker, user_id)
     cb = _FakeCallback(user_id)
-    with patch("cubingrf_notifier.bot.disciplines.AsyncSessionLocal", session_maker):
-        await cb_toggle(cb, DisciplineCB(action="toggle", code="333"))
+    with patch("cubingrf_notifier.bot.events.AsyncSessionLocal", session_maker):
+        await cb_toggle(cb, EventCB(action="toggle", code="333"))
     assert cb.message.text.startswith(get_text("ru", "disciplines.title"))
     assert get_text("ru", "settings.title") not in cb.message.text
     rows = cb.message.reply_markup.inline_keyboard
@@ -82,9 +82,9 @@ async def test_discipline_toggle_off_stays_on_picker(session_maker):
     user_id = 111
     await _create_user(session_maker, user_id)
     cb = _FakeCallback(user_id)
-    with patch("cubingrf_notifier.bot.disciplines.AsyncSessionLocal", session_maker):
-        await cb_toggle(cb, DisciplineCB(action="toggle", code="333"))
-        await cb_toggle(cb, DisciplineCB(action="toggle", code="333"))
+    with patch("cubingrf_notifier.bot.events.AsyncSessionLocal", session_maker):
+        await cb_toggle(cb, EventCB(action="toggle", code="333"))
+        await cb_toggle(cb, EventCB(action="toggle", code="333"))
     rows = cb.message.reply_markup.inline_keyboard
     assert rows[0][0].text == "⬜ 3x3x3"
     assert get_text("ru", "settings.title") not in cb.message.text
@@ -94,7 +94,7 @@ async def test_discipline_select_all_stays_on_picker(session_maker):
     user_id = 111
     await _create_user(session_maker, user_id)
     cb = _FakeCallback(user_id)
-    with patch("cubingrf_notifier.bot.disciplines.AsyncSessionLocal", session_maker):
+    with patch("cubingrf_notifier.bot.events.AsyncSessionLocal", session_maker):
         await cb_select_all(cb)
     assert cb.message.text.startswith(get_text("ru", "disciplines.title"))
     rows = cb.message.reply_markup.inline_keyboard
@@ -105,8 +105,8 @@ async def test_discipline_clear_stays_on_picker(session_maker):
     user_id = 111
     await _create_user(session_maker, user_id)
     cb = _FakeCallback(user_id)
-    with patch("cubingrf_notifier.bot.disciplines.AsyncSessionLocal", session_maker):
-        await cb_toggle(cb, DisciplineCB(action="toggle", code="333"))
+    with patch("cubingrf_notifier.bot.events.AsyncSessionLocal", session_maker):
+        await cb_toggle(cb, EventCB(action="toggle", code="333"))
         await cb_clear(cb)
     assert cb.message.text.startswith(get_text("ru", "disciplines.title"))
     assert get_text("ru", "disciplines.none") in cb.message.text
@@ -119,7 +119,7 @@ async def test_discipline_back_returns_to_settings(session_maker):
     await _create_user(session_maker, user_id)
     cb = _FakeCallback(user_id)
     with patch("cubingrf_notifier.bot.user_status.AsyncSessionLocal", session_maker):
-        await cb_disciplines_back(cb)
+        await cb_events_back(cb)
     assert cb.message.text.startswith(get_text("ru", "settings.title"))
 
 

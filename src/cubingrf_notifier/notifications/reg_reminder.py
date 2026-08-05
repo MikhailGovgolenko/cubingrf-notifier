@@ -3,7 +3,7 @@
 The decision helper (``should_send_registration_reminder``) is pure and
 unit-testable; ``check_registration_reminders`` sends the due reminders using
 the same matcher and notifier as regular notifications, so recipients follow
-their notification/region/discipline settings and language.
+their notification/region/event settings and language.
 """
 import logging
 from datetime import datetime, timedelta, timezone
@@ -69,8 +69,8 @@ async def check_registration_reminders() -> None:
             u.telegram_id: await user_repo.get_user_regions(u.telegram_id)
             for u in users
         }
-        user_disciplines: Dict[int, List[str]] = {
-            u.telegram_id: await user_repo.get_user_disciplines(u.telegram_id)
+        user_events: Dict[int, List[str]] = {
+            u.telegram_id: await user_repo.get_user_events(u.telegram_id)
             for u in users
         }
 
@@ -88,7 +88,7 @@ async def check_registration_reminders() -> None:
                             user,
                             comp,
                             user_region_keys=user_regions[user.telegram_id],
-                            user_discipline_codes=user_disciplines[user.telegram_id],
+                            user_event_codes=user_events[user.telegram_id],
                         ):
                             continue
                         if await notif_repo.was_sent(user.id, comp.id, KIND_REG_SOON):

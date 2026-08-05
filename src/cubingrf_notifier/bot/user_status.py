@@ -15,15 +15,15 @@ logger = logging.getLogger(__name__)
 
 def format_user_status(
     user,
-    discipline_codes=None,
+    event_codes=None,
     language: str = DEFAULT_LANGUAGE,
     region_keys=None,
 ) -> str:
     """Format the user's current subscription status as localized text.
 
-    ``discipline_codes`` is an optional iterable of WCA codes (e.g. as stored
-    in UserDiscipline). When omitted, the ``user.disciplines`` relationship is
-    used instead so callers without extra queries still get correct output.
+    ``event_codes`` is an optional iterable of WCA codes (e.g. as stored in
+    UserEvent). When omitted, the ``user.events`` relationship is used instead
+    so callers without extra queries still get correct output.
     ``region_keys`` works the same way for the ``user.regions`` relationship.
 
     Status layout:
@@ -49,20 +49,20 @@ def format_user_status(
 
     language_name = _language_display_name(language)
 
-    if discipline_codes is None:
-        discipline_codes = [d.discipline_code for d in user.disciplines]
-    discipline_codes = sort_discipline_codes(discipline_codes)
+    if event_codes is None:
+        event_codes = [e.event_code for e in user.events]
+    event_codes = sort_discipline_codes(event_codes)
 
     if region_keys is None:
         region_keys = [r.region_key for r in user.regions]
     region_keys = sort_region_keys(region_keys)
 
     # "All" when nothing is selected (no filter) or when every available
-    # discipline/region is selected — in both cases the status shows a single word.
-    if not discipline_codes or set(discipline_codes) >= set(ALL_DISCIPLINE_CODES):
+    # event/region is selected — in both cases the status shows a single word.
+    if not event_codes or set(event_codes) >= set(ALL_DISCIPLINE_CODES):
         labels: list[str] = []
     else:
-        labels = [discipline_label(code) for code in discipline_codes]
+        labels = [discipline_label(code) for code in event_codes]
 
     if not region_keys or set(region_keys) >= set(ALL_REGION_KEYS):
         region_keys = []
@@ -89,7 +89,7 @@ async def settings_screen_text(telegram_id: int, language: str = DEFAULT_LANGUAG
         user = await repo.get_user_by_telegram_id(telegram_id)
         if user is None:
             return get_text(language, "settings.title")
-        codes = await repo.get_user_disciplines(telegram_id)
+        codes = await repo.get_user_events(telegram_id)
         regions = await repo.get_user_regions(telegram_id)
     language = user.language or language
     return f"{get_text(language, 'settings.title')}\n\n{format_user_status(user, codes, language, regions)}"
@@ -108,7 +108,7 @@ async def show_settings_screen(callback: CallbackQuery) -> None:
         if user is None:
             user = await repo.create_user(callback.from_user.id)
             await sess.commit()
-        codes = await repo.get_user_disciplines(callback.from_user.id)
+        codes = await repo.get_user_events(callback.from_user.id)
         regions = await repo.get_user_regions(callback.from_user.id)
         language = user.language or DEFAULT_LANGUAGE
     text = await build_settings(user, codes, language, regions)
@@ -123,7 +123,7 @@ async def send_settings_screen(message: Message) -> None:
         if user is None:
             user = await repo.create_user(message.from_user.id)
             await sess.commit()
-        codes = await repo.get_user_disciplines(message.from_user.id)
+        codes = await repo.get_user_events(message.from_user.id)
         regions = await repo.get_user_regions(message.from_user.id)
         language = user.language or DEFAULT_LANGUAGE
     text = await build_settings(user, codes, language, regions)

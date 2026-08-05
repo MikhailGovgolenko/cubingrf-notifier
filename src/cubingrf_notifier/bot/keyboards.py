@@ -33,8 +33,8 @@ class CompetitionCB(CallbackData, prefix="comp"):
     page: int = 0
 
 
-class DisciplineCB(CallbackData, prefix="disc"):
-    """Discipline selection actions (toggle, select all, clear, back)."""
+class EventCB(CallbackData, prefix="evt"):
+    """Event selection actions (toggle, select all, clear, back)."""
 
     action: str
     code: str = ""
@@ -68,7 +68,7 @@ def settings_keyboard(
     notif_key = "settings.notifications_off" if notifications_enabled else "settings.notifications_on"
     kb.row(_btn(get_text(language, notif_key), SettingsCB(action="notifications")))
     kb.row(_btn(get_text(language, "settings.region"), SettingsCB(action="region")))
-    kb.row(_btn(get_text(language, "settings.disciplines"), SettingsCB(action="disciplines")))
+    kb.row(_btn(get_text(language, "settings.disciplines"), SettingsCB(action="events")))
     kb.row(_btn(get_text(language, "settings.language"), SettingsCB(action="language")))
     kb.row(_btn(get_text(language, "back"), MenuCB(action="back")))
     return kb.as_markup()
@@ -133,22 +133,22 @@ def _picker_rows(kb: InlineKeyboardBuilder, items, selected: set[str], make_cb) 
         kb.row(_btn(text, make_cb(value)))
 
 
-def disciplines_keyboard(selected_codes: list[str], language: str = "ru") -> InlineKeyboardMarkup:
-    """Discipline selection menu with toggle buttons and bulk actions.
+def events_keyboard(selected_codes: list[str], language: str = "ru") -> InlineKeyboardMarkup:
+    """Event selection menu with toggle buttons and bulk actions.
 
-    Every discipline is rendered on its own row (vertical list); bulk actions
+    Every event is rendered on its own row (vertical list); bulk actions
     and back stay grouped at the bottom.
     """
     kb = InlineKeyboardBuilder()
     _picker_rows(kb, DISCIPLINES, set(selected_codes),
-                 lambda code: DisciplineCB(action="toggle", code=code))
+                 lambda code: EventCB(action="toggle", code=code))
 
     kb.row(
-        _btn(get_text(language, "disciplines.all"), DisciplineCB(action="all")),
-        _btn(get_text(language, "disciplines.clear"), DisciplineCB(action="clear")),
+        _btn(get_text(language, "disciplines.all"), EventCB(action="all")),
+        _btn(get_text(language, "disciplines.clear"), EventCB(action="clear")),
     )
     kb.row(
-        _btn(get_text(language, "disciplines.back"), DisciplineCB(action="back")),
+        _btn(get_text(language, "disciplines.back"), EventCB(action="back")),
     )
 
     return kb.as_markup()

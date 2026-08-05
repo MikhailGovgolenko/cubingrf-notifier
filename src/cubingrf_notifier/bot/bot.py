@@ -11,7 +11,7 @@ from ..i18n import get_text
 from .menu import router as menu_router
 from .settings import router as settings_router
 from .competitions import router as competitions_router
-from .disciplines import router as disciplines_router
+from .events import router as events_router
 from .regions import router as regions_router
 from .language import router as language_router
 from .keyboards import main_menu_keyboard
@@ -33,7 +33,7 @@ bot = (
 dp = Dispatcher()
 dp.include_router(menu_router)
 dp.include_router(settings_router)
-dp.include_router(disciplines_router)
+dp.include_router(events_router)
 dp.include_router(regions_router)
 dp.include_router(language_router)
 dp.include_router(competitions_router)

@@ -13,9 +13,9 @@ from ..competitions.disciplines import (
 from ..i18n import get_text
 from .formatting import selection_screen_text
 from .keyboards import (
-    disciplines_keyboard,
+    events_keyboard,
     SettingsCB,
-    DisciplineCB,
+    EventCB,
 )
 from .user_status import show_settings_screen
 
@@ -26,7 +26,7 @@ router = Router()
 
 async def _load_selected(telegram_id: int) -> list[str]:
     async with AsyncSessionLocal() as sess:
-        return await UserRepository(sess).get_user_disciplines(telegram_id)
+        return await UserRepository(sess).get_user_events(telegram_id)
 
 
 async def _user_language(telegram_id: int) -> str:
@@ -34,7 +34,7 @@ async def _user_language(telegram_id: int) -> str:
         return await UserRepository(sess).get_user_language(telegram_id)
 
 
-def _disciplines_text(selected: list[str], language: str = "ru") -> str:
+def _events_text(selected: list[str], language: str = "ru") -> str:
     return selection_screen_text(
         get_text(language, "disciplines.title"),
         get_text(language, "disciplines.none"),
@@ -42,30 +42,30 @@ def _disciplines_text(selected: list[str], language: str = "ru") -> str:
     )
 
 
-async def show_disciplines_screen(callback: CallbackQuery) -> None:
+async def show_events_screen(callback: CallbackQuery) -> None:
     selected = await _load_selected(callback.from_user.id)
     language = await _user_language(callback.from_user.id)
     await callback.message.edit_text(
-        _disciplines_text(selected, language),
-        reply_markup=disciplines_keyboard(selected, language),
+        _events_text(selected, language),
+        reply_markup=events_keyboard(selected, language),
     )
     await callback.answer()
 
 
 async def _apply(telegram_id: int, codes: list[str]) -> None:
     async with AsyncSessionLocal() as sess:
-        await UserRepository(sess).set_user_disciplines(telegram_id, codes)
+        await UserRepository(sess).set_user_events(telegram_id, codes)
         await sess.commit()
 
 
-@router.callback_query(SettingsCB.filter(F.action == "disciplines"))
-async def cb_open_disciplines(callback: CallbackQuery):
-    logger.info("Disciplines menu opened (telegram_id=%s)", callback.from_user.id)
-    await show_disciplines_screen(callback)
+@router.callback_query(SettingsCB.filter(F.action == "events"))
+async def cb_open_events(callback: CallbackQuery):
+    logger.info("Events menu opened (telegram_id=%s)", callback.from_user.id)
+    await show_events_screen(callback)
 
 
-@router.callback_query(DisciplineCB.filter(F.action == "toggle"))
-async def cb_toggle(callback: CallbackQuery, callback_data: DisciplineCB):
+@router.callback_query(EventCB.filter(F.action == "toggle"))
+async def cb_toggle(callback: CallbackQuery, callback_data: EventCB):
     user_id = callback.from_user.id
     current = set(await _load_selected(user_id))
     code = callback_data.code
@@ -74,27 +74,27 @@ async def cb_toggle(callback: CallbackQuery, callback_data: DisciplineCB):
     else:
         current.add(code)
     await _apply(user_id, sorted(current))
-    logger.info("User %s discipline selection -> %s", user_id, sorted(current))
-    await show_disciplines_screen(callback)
+    logger.info("User %s event selection -> %s", user_id, sorted(current))
+    await show_events_screen(callback)
 
 
-@router.callback_query(DisciplineCB.filter(F.action == "all"))
+@router.callback_query(EventCB.filter(F.action == "all"))
 async def cb_select_all(callback: CallbackQuery):
     user_id = callback.from_user.id
     await _apply(user_id, list(ALL_DISCIPLINE_CODES))
-    logger.info("User %s selected all disciplines", user_id)
-    await show_disciplines_screen(callback)
+    logger.info("User %s selected all events", user_id)
+    await show_events_screen(callback)
 
 
-@router.callback_query(DisciplineCB.filter(F.action == "clear"))
+@router.callback_query(EventCB.filter(F.action == "clear"))
 async def cb_clear(callback: CallbackQuery):
     user_id = callback.from_user.id
     await _apply(user_id, [])
-    logger.info("User %s cleared discipline selection", user_id)
-    await show_disciplines_screen(callback)
+    logger.info("User %s cleared event selection", user_id)
+    await show_events_screen(callback)
 
 
-@router.callback_query(DisciplineCB.filter(F.action == "back"))
-async def cb_disciplines_back(callback: CallbackQuery):
+@router.callback_query(EventCB.filter(F.action == "back"))
+async def cb_events_back(callback: CallbackQuery):
     await show_settings_screen(callback)
     await callback.answer()

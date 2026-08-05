@@ -44,13 +44,13 @@ async def check_and_notify() -> None:
 
             users = await user_repo.list_enabled_users()
             if users:
-                # Preload each user's region/discipline preferences for filtering.
+                # Preload each user's region/event preferences for filtering.
                 user_regions = {
                     u.telegram_id: await user_repo.get_user_regions(u.telegram_id)
                     for u in users
                 }
-                user_disciplines = {
-                    u.telegram_id: await user_repo.get_user_disciplines(u.telegram_id)
+                user_events = {
+                    u.telegram_id: await user_repo.get_user_events(u.telegram_id)
                     for u in users
                 }
 
@@ -61,7 +61,7 @@ async def check_and_notify() -> None:
                                 user,
                                 comp,
                                 user_region_keys=user_regions[user.telegram_id],
-                                user_discipline_codes=user_disciplines[user.telegram_id],
+                                user_event_codes=user_events[user.telegram_id],
                             ):
                                 continue
                             logger.info(
