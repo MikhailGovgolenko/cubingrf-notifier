@@ -11,12 +11,18 @@ from .keyboards import settings_keyboard
 logger = logging.getLogger(__name__)
 
 
-def format_user_status(user, discipline_codes=None, language: str = DEFAULT_LANGUAGE) -> str:
+def format_user_status(
+    user,
+    discipline_codes=None,
+    language: str = DEFAULT_LANGUAGE,
+    region_keys=None,
+) -> str:
     """Format the user's current subscription status as localized text.
 
     ``discipline_codes`` is an optional iterable of WCA codes (e.g. as stored
     in UserDiscipline). When omitted, the ``user.disciplines`` relationship is
     used instead so callers without extra queries still get correct output.
+    ``region_keys`` works the same way for the ``user.regions`` relationship.
     """
     if user.notifications_enabled:
         notifications = get_text(language, "status.notifications_enabled")
@@ -30,12 +36,16 @@ def format_user_status(user, discipline_codes=None, language: str = DEFAULT_LANG
     labels = [discipline_label(code) for code in discipline_codes]
     disciplines = ", ".join(labels) or get_text(language, "status.disciplines_all")
 
+    if region_keys is None:
+        region_keys = [r.region_key for r in user.regions]
+    regions = ", ".join(region_keys) or get_text(language, "status.region_all")
+
     return (
         f"{get_text(language, 'status.header')}\n\n"
         f"{get_text(language, 'status.notifications')} {notifications}\n\n"
-        f"{get_text(language, 'status.language')} {language_name}\n\n"
-        f"{get_text(language, 'status.region')} {get_text(language, 'status.region_all')}\n\n"
-        f"{get_text(language, 'status.disciplines')} {disciplines}"
+        f"{get_text(language, 'status.regions')} {regions}\n\n"
+        f"{get_text(language, 'status.disciplines')} {disciplines}\n\n"
+        f"{get_text(language, 'status.language')} {language_name}"
     )
 
 
@@ -48,17 +58,19 @@ def _language_display_name(language: str) -> str:
 async def settings_screen_text(telegram_id: int, language: str = DEFAULT_LANGUAGE) -> str:
     """Full settings screen text (header + live user status)."""
     async with AsyncSessionLocal() as sess:
-        user = await UserRepository(sess).get_user_by_telegram_id(telegram_id)
+        repo = UserRepository(sess)
+        user = await repo.get_user_by_telegram_id(telegram_id)
         if user is None:
             return get_text(language, "settings.title")
-        codes = await UserRepository(sess).get_user_disciplines(telegram_id)
+        codes = await repo.get_user_disciplines(telegram_id)
+        regions = await repo.get_user_regions(telegram_id)
     language = user.language or language
-    return f"{get_text(language, 'settings.title')}\n\n{format_user_status(user, codes, language)}"
+    return f"{get_text(language, 'settings.title')}\n\n{format_user_status(user, codes, language, regions)}"
 
 
-async def build_settings(user, codes, language: str) -> str:
+async def build_settings(user, codes, language: str, region_keys=None) -> str:
     """Settings text for an already loaded user."""
-    return f"{get_text(language, 'settings.title')}\n\n{format_user_status(user, codes, language)}"
+    return f"{get_text(language, 'settings.title')}\n\n{format_user_status(user, codes, language, region_keys)}"
 
 
 async def show_settings_screen(callback: CallbackQuery) -> None:
@@ -70,8 +82,9 @@ async def show_settings_screen(callback: CallbackQuery) -> None:
             user = await repo.create_user(callback.from_user.id)
             await sess.commit()
         codes = await repo.get_user_disciplines(callback.from_user.id)
+        regions = await repo.get_user_regions(callback.from_user.id)
         language = user.language or DEFAULT_LANGUAGE
-    text = await build_settings(user, codes, language)
+    text = await build_settings(user, codes, language, regions)
     await callback.message.edit_text(text, reply_markup=settings_keyboard(user.notifications_enabled, language))
 
 
@@ -84,6 +97,7 @@ async def send_settings_screen(message: Message) -> None:
             user = await repo.create_user(message.from_user.id)
             await sess.commit()
         codes = await repo.get_user_disciplines(message.from_user.id)
+        regions = await repo.get_user_regions(message.from_user.id)
         language = user.language or DEFAULT_LANGUAGE
-    text = await build_settings(user, codes, language)
+    text = await build_settings(user, codes, language, regions)
     await message.answer(text, reply_markup=settings_keyboard(user.notifications_enabled, language))

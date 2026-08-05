@@ -11,6 +11,7 @@ from ..database.models import Competition
 from ..database.session import AsyncSessionLocal
 from ..database.repository import CompetitionRepository, UserRepository
 from ..competitions.disciplines import discipline_label
+from ..competitions.regions import region_key_from_location
 from ..i18n import get_text
 from .keyboards import competitions_keyboard, MenuCB, CompetitionCB
 
@@ -80,20 +81,41 @@ def _format_competitions(
     return "\n\n---\n\n".join(blocks)
 
 
+def filter_competitions(
+    comps: List[Competition],
+    discipline_codes: List[str] | None = None,
+    region_keys: List[str] | None = None,
+) -> List[Competition]:
+    """Apply user filters (disciplines and/or regions) to a competition list.
+
+    An empty selection for either dimension means "show everything" for that
+    dimension, so the two dimensions compose independently.
+    """
+    if discipline_codes:
+        chosen = set(discipline_codes)
+        comps = [c for c in comps if chosen & set(c.disciplines or [])]
+
+    if region_keys:
+        chosen = set(region_keys)
+        comps = [c for c in comps if region_key_from_location(c.location) in chosen]
+
+    return comps
+
+
 async def _load_page(page: int, telegram_id: int) -> Tuple[List[Competition], int, str]:
     async with AsyncSessionLocal() as sess:
         repo = CompetitionRepository(sess)
         comps = await repo.list_upcoming_competitions()
         selected = await UserRepository(sess).get_user_disciplines(telegram_id)
+        regions = await UserRepository(sess).get_user_regions(telegram_id)
         language = await UserRepository(sess).get_user_language(telegram_id)
 
-    if selected:
-        chosen = set(selected)
-        before = len(comps)
-        comps = [c for c in comps if chosen & set(c.disciplines or [])]
+    before = len(comps)
+    comps = filter_competitions(comps, selected, regions)
+    if len(comps) != before:
         logger.info(
-            "Discipline filter (telegram_id=%s): %s selected, %s/%s matched",
-            telegram_id, sorted(chosen), len(comps), before,
+            "Filters (telegram_id=%s): disciplines=%s regions=%s, %s/%s matched",
+            telegram_id, sorted(selected), sorted(regions), len(comps), before,
         )
 
     total = len(comps)

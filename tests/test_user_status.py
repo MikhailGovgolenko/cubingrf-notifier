@@ -5,10 +5,11 @@ from cubingrf_notifier.bot.keyboards import disciplines_keyboard, main_menu_keyb
 from cubingrf_notifier.competitions.disciplines import DISCIPLINES
 
 
-def _user(notifications_enabled=True, disciplines=()):
+def _user(notifications_enabled=True, disciplines=(), regions=()):
     return SimpleNamespace(
         notifications_enabled=notifications_enabled,
         disciplines=[SimpleNamespace(discipline_code=c) for c in disciplines],
+        regions=[SimpleNamespace(region_key=r) for r in regions],
     )
 
 
@@ -16,7 +17,7 @@ def test_status_new_user_defaults():
     text = format_user_status(_user())
     assert "Уведомления: включены ✅" in text
     assert "Язык: Русский" in text
-    assert "Регион: Все" in text
+    assert "🌍 Регионы: все" in text
     assert "Дисциплины: все" in text
 
 
@@ -36,11 +37,21 @@ def test_status_disciplines_codes_override_relationship():
     assert "Дисциплины: 2x2x2" in text
 
 
+def test_status_regions_from_relationship():
+    text = format_user_status(_user(regions=["Москва", "Санкт-Петербург"]))
+    assert "🌍 Регионы: Москва, Санкт-Петербург" in text
+
+
+def test_status_regions_empty_means_all():
+    text = format_user_status(_user(regions=["Москва"]), region_keys=[])
+    assert "🌍 Регионы: все" in text
+
+
 def test_status_english():
     text = format_user_status(_user(), language="en")
     assert "Notifications: enabled ✅" in text
     assert "Language: English" in text
-    assert "Region: All" in text
+    assert "🌍 Regions: all" in text
     assert "Disciplines: all" in text
 
 
@@ -69,3 +80,12 @@ def test_disciplines_keyboard_callback_data():
     rows = kb.inline_keyboard
     first = rows[0][0]
     assert first.callback_data == "disc:toggle:333"
+
+
+def test_disciplines_keyboard_vertical_per_row():
+    kb = disciplines_keyboard(selected_codes=[])
+    rows = kb.inline_keyboard
+    for i, (code, _) in enumerate(DISCIPLINES):
+        row = rows[i]
+        assert len(row) == 1
+        assert row[0].callback_data == f"disc:toggle:{code}"

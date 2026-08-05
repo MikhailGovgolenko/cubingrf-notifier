@@ -11,13 +11,13 @@
   "settings.language": "🌐 Language",
 
   "status.header": "📢 Current status:",
-  "status.notifications": "Notifications:",
+  "status.notifications": "🔔 Notifications:",
   "status.notifications_enabled": "enabled ✅",
   "status.notifications_disabled": "disabled ❌",
-  "status.language": "Language:",
-  "status.region": "Region:",
-  "status.region_all": "All",
-  "status.disciplines": "Disciplines:",
+  "status.language": "🌐 Language:",
+  "status.regions": "🌍 Regions:",
+  "status.region_all": "all",
+  "status.disciplines": "🧩 Disciplines:",
   "status.disciplines_all": "all",
 
   "language.title": "🌐 Interface language",
@@ -32,6 +32,9 @@
   "disciplines.all": "✔️ Select all",
   "disciplines.clear": "🗑️ Clear",
   "disciplines.back": "◀️ Back",
+
+  "regions.title": "🌍 Your regions:",
+  "regions.none": "Nothing selected — competitions from all regions are shown.",
 
   "competitions.title": "📅 Upcoming competitions",
   "competitions.none": "No competitions.",

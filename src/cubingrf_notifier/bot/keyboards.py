@@ -3,6 +3,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from ..competitions.disciplines import DISCIPLINES
+from ..competitions.regions import ALL_REGION_KEYS
 from ..i18n import get_text
 
 
@@ -37,6 +38,13 @@ class DisciplineCB(CallbackData, prefix="disc"):
 
     action: str
     code: str = ""
+
+
+class RegionCB(CallbackData, prefix="region"):
+    """Region selection actions (toggle, back)."""
+
+    action: str
+    key: str = ""
 
 
 def _btn(text: str, callback_data: CallbackData) -> InlineKeyboardButton:
@@ -117,20 +125,17 @@ def competitions_keyboard(page: int, total_pages: int, language: str = "ru") -> 
 
 
 def disciplines_keyboard(selected_codes: list[str], language: str = "ru") -> InlineKeyboardMarkup:
-    """Discipline selection menu with toggle buttons and bulk actions."""
+    """Discipline selection menu with toggle buttons and bulk actions.
+
+    Every discipline is rendered on its own row (vertical list); bulk actions
+    and back stay grouped at the bottom.
+    """
     selected = set(selected_codes)
     kb = InlineKeyboardBuilder()
 
-    buttons = [
-        _btn(
-            ("✅ " if code in selected else "⬜ ") + label,
-            DisciplineCB(action="toggle", code=code),
-        )
-        for code, label in DISCIPLINES
-    ]
-    kb.row(*buttons[:8])
-    kb.row(*buttons[8:16])
-    kb.row(*buttons[16:])
+    for code, label in DISCIPLINES:
+        text = ("✅ " if code in selected else "⬜ ") + label
+        kb.row(_btn(text, DisciplineCB(action="toggle", code=code)))
 
     kb.row(
         _btn(get_text(language, "disciplines.all"), DisciplineCB(action="all")),
@@ -138,6 +143,22 @@ def disciplines_keyboard(selected_codes: list[str], language: str = "ru") -> Inl
     )
     kb.row(
         _btn(get_text(language, "disciplines.back"), DisciplineCB(action="back")),
+    )
+
+    return kb.as_markup()
+
+
+def regions_keyboard(selected_keys: list[str], language: str = "ru") -> InlineKeyboardMarkup:
+    """Region selection menu with toggle buttons (vertical list) and back."""
+    selected = set(selected_keys)
+    kb = InlineKeyboardBuilder()
+
+    for key in ALL_REGION_KEYS:
+        text = ("✅ " if key in selected else "⬜ ") + key
+        kb.row(_btn(text, RegionCB(action="toggle", key=key)))
+
+    kb.row(
+        _btn(get_text(language, "back"), RegionCB(action="back")),
     )
 
     return kb.as_markup()

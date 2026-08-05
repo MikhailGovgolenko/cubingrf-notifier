@@ -11,13 +11,13 @@
   "settings.language": "🌐 Язык",
 
   "status.header": "📢 Текущий статус:",
-  "status.notifications": "Уведомления:",
+  "status.notifications": "🔔 Уведомления:",
   "status.notifications_enabled": "включены ✅",
   "status.notifications_disabled": "выключены ❌",
-  "status.language": "Язык:",
-  "status.region": "Регион:",
-  "status.region_all": "Все",
-  "status.disciplines": "Дисциплины:",
+  "status.language": "🌐 Язык:",
+  "status.regions": "🌍 Регионы:",
+  "status.region_all": "все",
+  "status.disciplines": "🧩 Дисциплины:",
   "status.disciplines_all": "все",
 
   "language.title": "🌐 Язык интерфейса",
@@ -32,6 +32,9 @@
   "disciplines.all": "✔️ Выбрать все",
   "disciplines.clear": "🗑️ Сбросить",
   "disciplines.back": "◀️ Назад",
+
+  "regions.title": "🌍 Ваши регионы:",
+  "regions.none": "Ничего не выбрано — показываются соревнования из всех регионов.",
 
   "competitions.title": "📅 Ближайшие соревнования",
   "competitions.none": "Нет соревнований.",

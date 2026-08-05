@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete, or_
 from sqlalchemy.exc import IntegrityError
 
-from .models import Competition, User, Notification, UserDiscipline
+from .models import Competition, User, Notification, UserDiscipline, UserRegion
 from ..competitions.models import CompetitionDTO
 
 logger = logging.getLogger(__name__)
@@ -81,6 +81,29 @@ class UserRepository:
         await self.session.execute(delete(UserDiscipline).where(UserDiscipline.user_id == user.id))
         for code in codes:
             self.session.add(UserDiscipline(user_id=user.id, discipline_code=code))
+        await self.session.flush()
+
+    async def get_user_regions(self, telegram_id: int) -> List[str]:
+        """Region keys the user selected (empty if none/not registered)."""
+        user = await self.get_user_by_telegram_id(telegram_id)
+        if user is None:
+            return []
+        q = (
+            select(UserRegion.region_key)
+            .where(UserRegion.user_id == user.id)
+            .order_by(UserRegion.region_key)
+        )
+        res = await self.session.execute(q)
+        return list(res.scalars().all())
+
+    async def set_user_regions(self, telegram_id: int, keys: List[str]) -> None:
+        """Replace the user's region selection with the given keys."""
+        user = await self.get_user_by_telegram_id(telegram_id)
+        if user is None:
+            user = await self.create_user(telegram_id)
+        await self.session.execute(delete(UserRegion).where(UserRegion.user_id == user.id))
+        for key in keys:
+            self.session.add(UserRegion(user_id=user.id, region_key=key))
         await self.session.flush()
 
 

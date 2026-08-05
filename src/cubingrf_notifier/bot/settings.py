@@ -34,8 +34,3 @@ async def cb_settings_notifications(callback: CallbackQuery):
     logger.info("User %s toggled notifications", user_id)
     await show_settings_screen(callback)
     await callback.answer()
-
-
-@router.callback_query(SettingsCB.filter(F.action == "region"))
-async def cb_region(callback: CallbackQuery):
-    await callback.answer("Этот раздел появится в следующих версиях.", show_alert=True)

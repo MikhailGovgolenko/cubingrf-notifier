@@ -32,6 +32,7 @@ class User(Base):
 
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
     disciplines = relationship("UserDiscipline", back_populates="user", cascade="all, delete-orphan")
+    regions = relationship("UserRegion", back_populates="user", cascade="all, delete-orphan")
 
 class Competition(Base):
     __tablename__ = "competitions"
@@ -59,6 +60,18 @@ class UserDiscipline(Base):
     discipline_code = Column(String(20), nullable=False)
 
     user = relationship("User", back_populates="disciplines")
+
+class UserRegion(Base):
+    """A single region the user wants to follow (normalized preference)."""
+    __tablename__ = "user_regions"
+    __table_args__ = (
+        UniqueConstraint("user_id", "region_key", name="uq_user_region"),
+    )
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    region_key = Column(String(128), nullable=False)
+
+    user = relationship("User", back_populates="regions")
 
 class Notification(Base):
     __tablename__ = "notifications"
