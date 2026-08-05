@@ -1,4 +1,4 @@
-$sql = @"
+$sqlStats = @"
 SET TIME ZONE 'Europe/Moscow';
 SET client_min_messages TO WARNING;
 
@@ -45,7 +45,10 @@ FROM (
     SELECT 16, '=============================='
 ) stats
 ORDER BY sort;
+"@
 
+$sqlUsers = @"
+SET TIME ZONE 'Europe/Moscow';
 
 SELECT
     u.created_at AS created_at,
@@ -70,5 +73,12 @@ ORDER BY u.created_at DESC;
 docker exec -i cubingrf-notifier-db-1 `
     psql -U cubingrf -d cubingrf `
     --pset=footer=off `
+    --pset=tuples_only=on `
     --quiet `
-    -c "$sql"
+    -c "$sqlStats"
+
+docker exec -i cubingrf-notifier-db-1 `
+    psql -U cubingrf -d cubingrf `
+    --pset=footer=off `
+    --quiet `
+    -c "$sqlUsers"
