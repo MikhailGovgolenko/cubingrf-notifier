@@ -1,5 +1,6 @@
 $sql = @"
 SET TIME ZONE 'Europe/Moscow';
+SET client_min_messages TO WARNING;
 
 SELECT line
 FROM (
@@ -67,4 +68,7 @@ ORDER BY u.created_at DESC;
 "@
 
 docker exec -i cubingrf-notifier-db-1 `
-    psql -U cubingrf -d cubingrf -c "$sql"
+    psql -U cubingrf -d cubingrf `
+    --pset=footer=off `
+    --quiet `
+    -c "$sql"
