@@ -10,7 +10,7 @@ from aiogram.types import Message, CallbackQuery
 from ..database.models import Competition
 from ..database.session import AsyncSessionLocal
 from ..database.repository import CompetitionRepository, UserRepository
-from ..competitions.disciplines import discipline_label
+from ..competitions.disciplines import discipline_short_label
 from ..competitions.regions import region_key_from_location
 from ..i18n import get_text
 from .keyboards import competitions_keyboard, MenuCB, CompetitionCB
@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 router = Router()
 
 PAGE_SIZE = 10
+
+# Separator between competition cards, spanning the full message width.
+CARD_SEPARATOR = "─" * 21
 
 _RU_MONTHS = {
     1: "января", 2: "февраля", 3: "марта", 4: "апреля", 5: "мая", 6: "июня",
@@ -45,26 +48,46 @@ def _format_date(d: datetime, language: str = "ru") -> str:
     return f"{d.day} {months[d.month]} {d.year}"
 
 
+def _short_location(location: str | None) -> str:
+    """Trim "Region, City" to just the city for a compact card."""
+    if not location:
+        return "-"
+    city = location.split(",", 1)[-1].strip()
+    return city or location
+
+
+def _disciplines_line(codes: List[str], language: str) -> str | None:
+    """Full discipline line: "3x3 • 4x4 • OH", nothing truncated."""
+    if not codes:
+        return None
+    labels = [discipline_short_label(c) for c in codes]
+    return f"{get_text(language, 'competitions.disciplines')} {' • '.join(labels)}"
+
+
 def _format_competition(c: Competition, language: str = "ru") -> str:
-    """Single competition card: name, date, location, disciplines, registration, link."""
+    """Single compact competition card:
+    title, date/location, short discipline list, registration, link.
+    """
     lines = [
         f"🏆 {c.name}",
         "",
         get_text(language, "competitions.date", date=_format_date(c.date, language)),
-        get_text(language, "competitions.location", location=c.location or "-"),
+        get_text(language, "competitions.location", location=_short_location(c.location)),
     ]
 
-    discipline_codes = c.disciplines or []
-    if discipline_codes:
-        labels = ", ".join(discipline_label(code) for code in discipline_codes)
-        lines.append(f"\n{get_text(language, 'competitions.disciplines')}\n{labels}")
+    disc_line = _disciplines_line(c.disciplines or [], language)
+    if disc_line:
+        lines.append("")
+        lines.append(disc_line)
 
     reg_key = _REG_LABEL_KEYS.get(c.reg_status or "")
     if reg_key:
-        lines.append(f"\n{get_text(language, reg_key)}")
+        lines.append("")
+        lines.append(get_text(language, reg_key))
 
     if c.url:
-        lines.append(f"\n🔗 {c.url}")
+        lines.append("")
+        lines.append(f"🔗 {c.url}")
 
     return "\n".join(lines)
 
@@ -72,13 +95,16 @@ def _format_competition(c: Competition, language: str = "ru") -> str:
 def _format_competitions(
     comps: List[Competition],
     language: str = "ru",
+    total_count: int | None = None,
 ) -> str:
     if not comps:
         return get_text(language, "competitions.title") + "\n\n" + get_text(language, "competitions.none")
 
     blocks = [get_text(language, "competitions.title")]
+    if total_count is not None:
+        blocks.append(get_text(language, "competitions.matching", count=total_count))
     blocks.extend(_format_competition(c, language) for c in comps)
-    return "\n\n---\n\n".join(blocks)
+    return f"\n\n{CARD_SEPARATOR}\n\n".join(blocks)
 
 
 def filter_competitions(
@@ -102,7 +128,7 @@ def filter_competitions(
     return comps
 
 
-async def _load_page(page: int, telegram_id: int) -> Tuple[List[Competition], int, str]:
+async def _load_page(page: int, telegram_id: int) -> Tuple[List[Competition], int, str, int]:
     async with AsyncSessionLocal() as sess:
         repo = CompetitionRepository(sess)
         comps = await repo.list_upcoming_competitions()
@@ -112,17 +138,17 @@ async def _load_page(page: int, telegram_id: int) -> Tuple[List[Competition], in
 
     before = len(comps)
     comps = filter_competitions(comps, selected, regions)
-    if len(comps) != before:
+    total_count = len(comps)
+    if total_count != before:
         logger.info(
             "Filters (telegram_id=%s): disciplines=%s regions=%s, %s/%s matched",
-            telegram_id, sorted(selected), sorted(regions), len(comps), before,
+            telegram_id, sorted(selected), sorted(regions), total_count, before,
         )
 
-    total = len(comps)
     start = page * PAGE_SIZE
     comps = comps[start:start + PAGE_SIZE]
-    total_pages = max(1, math.ceil(total / PAGE_SIZE))
-    return comps, total_pages, language
+    total_pages = max(1, math.ceil(total_count / PAGE_SIZE))
+    return comps, total_pages, language, total_count
 
 
 def _render(
@@ -130,9 +156,10 @@ def _render(
     page: int,
     total_pages: int,
     language: str,
+    total_count: int,
 ) -> Tuple[str, object]:
     return (
-        _format_competitions(comps, language),
+        _format_competitions(comps, language, total_count),
         competitions_keyboard(page, total_pages, language),
     )
 
@@ -163,9 +190,9 @@ async def _render_callback(callback: CallbackQuery, page: int, telegram_id: int)
     """
     try:
         logger.info("Loading competitions page=%s", page)
-        comps, total_pages, language = await _load_page(page, telegram_id)
+        comps, total_pages, language, total_count = await _load_page(page, telegram_id)
         logger.info("Found competitions count=%s", len(comps))
-        text, kb = _render(comps, page, total_pages, language)
+        text, kb = _render(comps, page, total_pages, language, total_count)
         await callback.message.edit_text(text, reply_markup=kb)
     except Exception:
         logger.exception(
@@ -179,6 +206,6 @@ async def _render_callback(callback: CallbackQuery, page: int, telegram_id: int)
 
 @router.message(Command("competitions"))
 async def cmd_competitions(message: Message):
-    comps, total_pages, language = await _load_page(0, message.from_user.id)
-    text, kb = _render(comps, 0, total_pages, language)
+    comps, total_pages, language, total_count = await _load_page(0, message.from_user.id)
+    text, kb = _render(comps, 0, total_pages, language, total_count)
     await message.answer(text, reply_markup=kb)

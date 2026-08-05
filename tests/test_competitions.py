@@ -1,13 +1,14 @@
 from datetime import datetime
 from types import SimpleNamespace
 
-from cubingrf_notifier.bot.competitions import _format_competition, _format_date
+from cubingrf_notifier.bot.competitions import _format_competition, _format_date, _format_competitions
+from cubingrf_notifier.bot.keyboards import competitions_keyboard
 
 
 def _comp(
     name="Moscow Open",
     date=datetime(2026, 8, 7),
-    location="Москва, Россия",
+    location="Москва, Москва",
     disciplines=None,
     reg_status="open",
     url="https://cubingrf.org/competitions/1",
@@ -38,10 +39,9 @@ def test_competition_card_ru_open():
     text = _format_competition(_comp(disciplines=["333", "444"]), "ru")
     assert "🏆 Moscow Open" in text
     assert "📆 7 августа 2026" in text
-    assert "📍 Москва, Россия" in text
-    assert "🧩 Дисциплины:" in text
-    assert "3x3x3, 4x4x4" in text
-    assert "🟢 Регистрация открыта" in text
+    assert "📍 Москва" in text
+    assert "🧩 3x3 • 4x4" in text
+    assert "🟢 Идёт регистрация" in text
     assert "🔗 https://cubingrf.org/competitions/1" in text
 
 
@@ -51,8 +51,7 @@ def test_competition_card_scheduled_en():
         "en",
     )
     assert "🟡 Registration opens soon" in text
-    assert "Disciplines:" in text
-    assert "3x3x3, 3x3 One-Handed" in text
+    assert "🧩 3x3 • OH" in text
 
 
 def test_competition_card_no_reg_status_line():
@@ -63,3 +62,41 @@ def test_competition_card_no_reg_status_line():
 def test_competition_card_no_disciplines_section():
     text = _format_competition(_comp(disciplines=None), "ru")
     assert "Дисциплины" not in text
+
+
+def test_competition_card_all_disciplines_listed():
+    text = _format_competition(_comp(disciplines=["333", "222", "444", "555", "666", "777"]), "ru")
+    assert "🧩 3x3 • 2x2 • 4x4 • 5x5 • 6x6 • 7x7" in text
+    assert "+" not in text.split("🧩")[1]
+
+
+def test_competition_card_city_only_location():
+    text = _format_competition(_comp(location="Московская область, Щёлково"), "ru")
+    assert "📍 Щёлково" in text
+
+
+def test_format_competitions_full_width_separator():
+    comps = [_comp(name="A"), _comp(name="B")]
+    text = _format_competitions(comps, "ru")
+    assert "─" * 30 in text
+    assert "---" not in text
+
+
+def test_format_competitions_shows_matching_count():
+    comps = [_comp(name="A"), _comp(name="B")]
+    text = _format_competitions(comps, "ru", total_count=12)
+    assert "📊 Подходит соревнований: 12" in text
+
+
+def test_competitions_keyboard_single_page_hides_indicator():
+    kb = competitions_keyboard(0, 1, "ru")
+    buttons = [b.text for row in kb.inline_keyboard for b in row]
+    assert buttons == ["◀️ Назад"]
+
+
+def test_competitions_keyboard_multi_page_shows_page():
+    kb = competitions_keyboard(1, 3, "ru")
+    texts = [b.text for row in kb.inline_keyboard for b in row]
+    assert "⬅️" in texts
+    assert "2/3" in texts
+    assert "➡️" in texts

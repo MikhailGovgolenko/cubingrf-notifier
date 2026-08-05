@@ -6,6 +6,7 @@ from ..database.session import AsyncSessionLocal
 from ..database.repository import UserRepository
 from ..competitions.disciplines import discipline_label
 from ..i18n import DEFAULT_LANGUAGE, get_text
+from .formatting import status_section
 from .keyboards import settings_keyboard
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,22 @@ def format_user_status(
     in UserDiscipline). When omitted, the ``user.disciplines`` relationship is
     used instead so callers without extra queries still get correct output.
     ``region_keys`` works the same way for the ``user.regions`` relationship.
+
+    Status layout:
+
+        📢 Текущий статус
+
+        🔔 Уведомления: ✅ Включены
+
+        🌍 Регионы:
+        • Москва
+        • Санкт-Петербург
+
+        🧩 Дисциплины:
+        • 3x3x3
+        • 4x4x4
+
+        🌐 Язык: Русский
     """
     if user.notifications_enabled:
         notifications = get_text(language, "status.notifications_enabled")
@@ -34,17 +51,15 @@ def format_user_status(
     if discipline_codes is None:
         discipline_codes = [d.discipline_code for d in user.disciplines]
     labels = [discipline_label(code) for code in discipline_codes]
-    disciplines = ", ".join(labels) or get_text(language, "status.disciplines_all")
 
     if region_keys is None:
         region_keys = [r.region_key for r in user.regions]
-    regions = ", ".join(region_keys) or get_text(language, "status.region_all")
 
     return (
         f"{get_text(language, 'status.header')}\n\n"
         f"{get_text(language, 'status.notifications')} {notifications}\n\n"
-        f"{get_text(language, 'status.regions')} {regions}\n\n"
-        f"{get_text(language, 'status.disciplines')} {disciplines}\n\n"
+        f"{status_section(get_text(language, 'status.regions'), region_keys, get_text(language, 'status.region_all'))}\n\n"
+        f"{status_section(get_text(language, 'status.disciplines'), labels, get_text(language, 'status.disciplines_all'))}\n\n"
         f"{get_text(language, 'status.language')} {language_name}"
     )
 

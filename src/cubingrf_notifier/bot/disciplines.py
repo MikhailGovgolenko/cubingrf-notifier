@@ -7,6 +7,7 @@ from ..database.session import AsyncSessionLocal
 from ..database.repository import UserRepository
 from ..competitions.disciplines import discipline_label, ALL_DISCIPLINE_CODES
 from ..i18n import get_text
+from .formatting import selection_screen_text
 from .keyboards import (
     disciplines_keyboard,
     SettingsCB,
@@ -30,10 +31,11 @@ async def _user_language(telegram_id: int) -> str:
 
 
 def _disciplines_text(selected: list[str], language: str = "ru") -> str:
-    if not selected:
-        return f"{get_text(language, 'disciplines.title')}\n\n{get_text(language, 'disciplines.none')}"
-    labels = ", ".join(discipline_label(code) for code in selected)
-    return f"{get_text(language, 'disciplines.title')}\n\n{labels}"
+    return selection_screen_text(
+        get_text(language, "disciplines.title"),
+        get_text(language, "disciplines.none"),
+        [discipline_label(code) for code in selected],
+    )
 
 
 async def show_disciplines_screen(callback: CallbackQuery) -> None:

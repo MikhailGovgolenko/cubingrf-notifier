@@ -1,5 +1,5 @@
 {
-  "menu.title": "🧊 CubingRF Notifier",
+  "menu.title": "CubingRF Notifier",
   "menu.competitions": "📅 Соревнования",
   "menu.settings": "⚙️ Настройки",
 
@@ -12,13 +12,13 @@
 
   "status.header": "📢 Текущий статус:",
   "status.notifications": "🔔 Уведомления:",
-  "status.notifications_enabled": "включены ✅",
-  "status.notifications_disabled": "выключены ❌",
+  "status.notifications_enabled": "✅ Включены",
+  "status.notifications_disabled": "❌ Выключены",
   "status.language": "🌐 Язык:",
   "status.regions": "🌍 Регионы:",
-  "status.region_all": "все",
+  "status.region_all": "Все",
   "status.disciplines": "🧩 Дисциплины:",
-  "status.disciplines_all": "все",
+  "status.disciplines_all": "Все",
 
   "language.title": "🌐 Язык интерфейса",
   "language.current": "Текущий язык: {name}",
@@ -35,16 +35,20 @@
 
   "regions.title": "🌍 Ваши регионы:",
   "regions.none": "Ничего не выбрано — показываются соревнования из всех регионов.",
+  "regions.all": "✔️ Выбрать все",
+  "regions.clear": "🗑️ Сбросить",
 
   "competitions.title": "📅 Ближайшие соревнования",
   "competitions.none": "Нет соревнований.",
+  "competitions.matching": "📊 Подходит соревнований: {count}",
   "competitions.date": "📆 {date}",
   "competitions.location": "📍 {location}",
-  "competitions.disciplines": "🧩 Дисциплины:",
-  "competitions.reg_open": "🟢 Регистрация открыта",
+  "competitions.disciplines": "🧩",
+  "competitions.more_disciplines": "+{count}",
+  "competitions.reg_open": "🟢 Идёт регистрация",
   "competitions.reg_scheduled": "🟡 Регистрация скоро откроется",
   "competitions.reg_closed": "🔴 Регистрация закрыта",
-  "competitions.page": "Страница {page}/{total}",
+  "competitions.page": "{page}/{total}",
 
   "back": "◀️ Назад",
   "unknown_date": "дата неизвестна"

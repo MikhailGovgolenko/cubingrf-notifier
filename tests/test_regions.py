@@ -8,6 +8,7 @@ from cubingrf_notifier.database.models import Base, User
 from cubingrf_notifier.database.repository import UserRepository
 from cubingrf_notifier.competitions.regions import REGION_LABELS, ALL_REGION_KEYS, region_key_from_location
 from cubingrf_notifier.bot.competitions import filter_competitions
+from cubingrf_notifier.bot.keyboards import regions_keyboard
 
 
 @pytest.fixture
@@ -129,3 +130,31 @@ def test_filter_combined_region_and_discipline():
     out = filter_competitions(comps, discipline_codes=["333"], region_keys=["Москва"])
     assert len(out) == 1
     assert out[0].location == "Москва, Москва"
+
+
+# --- regions keyboard ---
+
+def test_regions_keyboard_vertical_per_row():
+    kb = regions_keyboard([])
+    rows = kb.inline_keyboard
+    for i, key in enumerate(ALL_REGION_KEYS):
+        row = rows[i]
+        assert len(row) == 1
+        assert row[0].callback_data == f"region:toggle:{key}"
+
+
+def test_regions_keyboard_checkmarks():
+    kb = regions_keyboard(["Москва"])
+    buttons = [btn.text for row in kb.inline_keyboard for btn in row]
+    assert buttons[0] == "✅ Москва"
+    assert buttons[1] == "⬜ Санкт-Петербург"
+
+
+def test_regions_keyboard_bulk_actions_below_list():
+    kb = regions_keyboard([])
+    rows = kb.inline_keyboard
+    bulk = rows[len(ALL_REGION_KEYS)]
+    assert [btn.text for btn in bulk] == ["✔️ Выбрать все", "🗑️ Сбросить"]
+    assert [btn.callback_data for btn in bulk] == ["region:all:", "region:clear:"]
+    back_row = rows[len(ALL_REGION_KEYS) + 1]
+    assert back_row[0].callback_data == "region:back:"

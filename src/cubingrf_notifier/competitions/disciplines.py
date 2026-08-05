@@ -22,9 +22,35 @@ DISCIPLINES: list[tuple[str, str]] = [
 
 DISCIPLINE_LABELS: dict[str, str] = dict(DISCIPLINES)
 
+# Compact labels for the competition card's discipline line.
+DISCIPLINE_SHORT_LABELS: dict[str, str] = {
+    "333": "3x3",
+    "222": "2x2",
+    "444": "4x4",
+    "555": "5x5",
+    "666": "6x6",
+    "777": "7x7",
+    "333bf": "3BLD",
+    "333fm": "FMC",
+    "333oh": "OH",
+    "clock": "Clock",
+    "minx": "Megaminx",
+    "pyram": "Pyraminx",
+    "skewb": "Skewb",
+    "sq1": "Square-1",
+    "444bf": "4BLD",
+    "555bf": "5BLD",
+    "333mbf": "MBLD",
+}
+
 ALL_DISCIPLINE_CODES: list[str] = [code for code, _ in DISCIPLINES]
 
 
 def discipline_label(code: str) -> str:
     """Human-readable label for a discipline code; falls back to the code."""
     return DISCIPLINE_LABELS.get(code, code)
+
+
+def discipline_short_label(code: str) -> str:
+    """Compact label for a discipline code; falls back to the full label."""
+    return DISCIPLINE_SHORT_LABELS.get(code, discipline_label(code))

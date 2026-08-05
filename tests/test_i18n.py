@@ -25,7 +25,7 @@ def test_en_text():
 
 
 def test_format_placeholders():
-    assert get_text("ru", "competitions.page", page=1, total=3) == "Страница 1/3"
+    assert get_text("ru", "competitions.page", page=1, total=3) == "1/3"
 
 
 def test_unknown_key_falls_back_to_default_then_key():

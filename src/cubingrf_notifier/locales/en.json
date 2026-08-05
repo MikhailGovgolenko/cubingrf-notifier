@@ -1,5 +1,5 @@
 {
-  "menu.title": "🧊 CubingRF Notifier",
+  "menu.title": "CubingRF Notifier",
   "menu.competitions": "📅 Competitions",
   "menu.settings": "⚙️ Settings",
 
@@ -12,13 +12,13 @@
 
   "status.header": "📢 Current status:",
   "status.notifications": "🔔 Notifications:",
-  "status.notifications_enabled": "enabled ✅",
-  "status.notifications_disabled": "disabled ❌",
+  "status.notifications_enabled": "✅ Enabled",
+  "status.notifications_disabled": "❌ Disabled",
   "status.language": "🌐 Language:",
   "status.regions": "🌍 Regions:",
-  "status.region_all": "all",
+  "status.region_all": "All",
   "status.disciplines": "🧩 Disciplines:",
-  "status.disciplines_all": "all",
+  "status.disciplines_all": "All",
 
   "language.title": "🌐 Interface language",
   "language.current": "Current language: {name}",
@@ -35,16 +35,20 @@
 
   "regions.title": "🌍 Your regions:",
   "regions.none": "Nothing selected — competitions from all regions are shown.",
+  "regions.all": "✔️ Select all",
+  "regions.clear": "🗑️ Clear",
 
   "competitions.title": "📅 Upcoming competitions",
   "competitions.none": "No competitions.",
+  "competitions.matching": "📊 Matching competitions: {count}",
   "competitions.date": "📆 {date}",
   "competitions.location": "📍 {location}",
-  "competitions.disciplines": "🧩 Disciplines:",
-  "competitions.reg_open": "🟢 Registration open",
+  "competitions.disciplines": "🧩",
+  "competitions.more_disciplines": "+{count}",
+  "competitions.reg_open": "🟢 Registration is open",
   "competitions.reg_scheduled": "🟡 Registration opens soon",
   "competitions.reg_closed": "🔴 Registration closed",
-  "competitions.page": "Page {page}/{total}",
+  "competitions.page": "{page}/{total}",
 
   "back": "◀️ Back",
   "unknown_date": "date unknown"

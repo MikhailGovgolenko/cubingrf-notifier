@@ -5,8 +5,9 @@ from aiogram.types import CallbackQuery
 
 from ..database.session import AsyncSessionLocal
 from ..database.repository import UserRepository
-from ..competitions.regions import REGION_LABELS
+from ..competitions.regions import ALL_REGION_KEYS
 from ..i18n import get_text
+from .formatting import selection_screen_text
 from .keyboards import (
     regions_keyboard,
     SettingsCB,
@@ -30,10 +31,11 @@ async def _user_language(telegram_id: int) -> str:
 
 
 def _regions_text(selected: list[str], language: str = "ru") -> str:
-    if not selected:
-        return f"{get_text(language, 'regions.title')}\n\n{get_text(language, 'regions.none')}"
-    labels = ", ".join(REGION_LABELS.get(key, key) for key in selected)
-    return f"{get_text(language, 'regions.title')}\n\n{labels}"
+    return selection_screen_text(
+        get_text(language, "regions.title"),
+        get_text(language, "regions.none"),
+        selected,
+    )
 
 
 async def show_regions_screen(callback: CallbackQuery) -> None:
@@ -69,6 +71,22 @@ async def cb_region_toggle(callback: CallbackQuery, callback_data: RegionCB):
         current.add(key)
     await _apply(user_id, sorted(current))
     logger.info("User %s region selection -> %s", user_id, sorted(current))
+    await show_regions_screen(callback)
+
+
+@router.callback_query(RegionCB.filter(F.action == "all"))
+async def cb_region_select_all(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    await _apply(user_id, list(ALL_REGION_KEYS))
+    logger.info("User %s selected all regions", user_id)
+    await show_regions_screen(callback)
+
+
+@router.callback_query(RegionCB.filter(F.action == "clear"))
+async def cb_region_clear(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    await _apply(user_id, [])
+    logger.info("User %s cleared region selection", user_id)
     await show_regions_screen(callback)
 
 
