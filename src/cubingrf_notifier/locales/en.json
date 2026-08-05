@@ -12,8 +12,8 @@
 
   "status.header": "📢 Current status:",
   "status.notifications": "🔔 Notifications:",
-  "status.notifications_enabled": "✅ Enabled",
-  "status.notifications_disabled": "❌ Disabled",
+  "status.notifications_enabled": "✅",
+  "status.notifications_disabled": "❌",
   "status.language": "🌐 Language:",
   "status.regions": "🌍 Regions:",
   "status.region_all": "All",
@@ -25,7 +25,7 @@
   "language.russian": "🇷🇺 Русский",
   "language.english": "🇬🇧 English",
   "language.name_russian": "Russian",
-  "language.name_english": "English",
+  "language.name_english": "🇬🇧 English",
 
   "disciplines.title": "🧩 Your disciplines:",
   "disciplines.none": "Nothing selected — all competitions are shown.",
@@ -38,10 +38,10 @@
   "regions.all": "✔️ Select all",
   "regions.clear": "🗑️ Clear",
 
-  "competitions.title": "📅 Upcoming competitions",
+  "competitions.title": "Upcoming competitions",
   "competitions.none": "No competitions.",
   "competitions.matching": "📊 Matching competitions: {count}",
-  "competitions.date": "📆 {date}",
+  "competitions.date": "📅 {date}",
   "competitions.location": "📍 {location}",
   "competitions.disciplines": "🧩",
   "competitions.more_disciplines": "+{count}",

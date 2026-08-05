@@ -16,6 +16,7 @@ from .database.repository import (
 from .scheduler.jobs import create_scheduler
 
 from .notifications.telegram import TelegramNotifier
+from .notifications.matcher import should_notify_user
 
 from .bot.bot import dp, bot
 
@@ -51,9 +52,26 @@ async def check_and_notify() -> None:
             await notifier.close()
             return
 
+        # Preload each user's region/discipline preferences for filtering.
+        user_regions = {
+            u.telegram_id: await user_repo.get_user_regions(u.telegram_id)
+            for u in users
+        }
+        user_disciplines = {
+            u.telegram_id: await user_repo.get_user_disciplines(u.telegram_id)
+            for u in users
+        }
+
         for comp in new:
             for user in users:
                 try:
+                    if not should_notify_user(
+                        user,
+                        comp,
+                        user_region_keys=user_regions[user.telegram_id],
+                        user_discipline_codes=user_disciplines[user.telegram_id],
+                    ):
+                        continue
                     logger.info(
                         "Sending notification competition=%s user=%s",
                         comp.id,
