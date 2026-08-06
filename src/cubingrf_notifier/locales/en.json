@@ -38,6 +38,13 @@
   "language.name_russian": "Russian",
   "language.name_english": "🇬🇧 English",
 
+  "help.title": "📖 Help",
+  "help.intro": "Control the bot via the main menu buttons.",
+  "help.cmd_start": "/start — open the main menu",
+  "help.cmd_competitions": "/competitions — upcoming competitions",
+  "help.cmd_settings": "/settings — settings",
+  "help.cmd_help": "/help — list of commands",
+
   "disciplines.title": "🧩 Your events",
   "disciplines.none": "Nothing selected — all competitions are shown.",
   "disciplines.all": "✔️ Select all",

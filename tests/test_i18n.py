@@ -49,6 +49,14 @@ def test_unknown_language_falls_back_to_english():
     assert get_text("zz", "menu.competitions") == "📅 Competitions"
 
 
+def test_help_localized_differently_in_ru_and_en():
+    assert get_text("ru", "help.title") == "📖 Помощь"
+    assert get_text("en", "help.title") == "📖 Help"
+    assert get_text("ru", "help.title") != get_text("en", "help.title")
+    assert "Управляйте" in get_text("ru", "help.intro")
+    assert "Control" in get_text("en", "help.intro")
+
+
 def test_all_keys_present():
     for lang in available_languages():
         assert all_keys_present(lang), f"missing keys for {lang}"

@@ -61,7 +61,7 @@ def _format_competitions(
 ) -> str:
     if not comps:
         return (
-            f"<b>{get_text(language, 'competitions.title')}</b>\n"
+            f"<h1>{get_text(language, 'competitions.title')}</h1>\n"
             f"{get_text(language, 'competitions.none')}"
         )
     return format_competitions_page(comps, language, total_count)

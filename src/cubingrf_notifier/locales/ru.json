@@ -38,6 +38,13 @@
   "language.name_russian": "🇷🇺 Русский",
   "language.name_english": "🇬🇧 English",
 
+  "help.title": "📖 Помощь",
+  "help.intro": "Управляйте ботом через кнопки главного меню.",
+  "help.cmd_start": "/start — открыть главное меню",
+  "help.cmd_competitions": "/competitions — ближайшие соревнования",
+  "help.cmd_settings": "/settings — настройки",
+  "help.cmd_help": "/help — список команд",
+
   "disciplines.title": "🧩 Ваши дисциплины",
   "disciplines.none": "Ничего не выбрано — показываются все соревнования.",
   "disciplines.all": "✔️ Выбрать все",

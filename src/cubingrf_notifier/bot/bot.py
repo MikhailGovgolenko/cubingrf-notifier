@@ -72,13 +72,17 @@ async def cmd_start(message: Message):
 
 @dp.message(Command("help"))
 async def cmd_help(message: Message):
-    await message.answer_rich(
-        rich_html(
-            "📖 Помощь<br/><br/>"
-            "Управляйте ботом через кнопки главного меню.<br/><br/>"
-            "/start — открыть главное меню<br/>"
-            "/competitions — ближайшие соревнования<br/>"
-            "/settings — настройки<br/>"
-            "/help — список команд"
-        )
+    user = message.from_user
+    if user is None:
+        return
+    async with AsyncSessionLocal() as sess:
+        language = await UserRepository(sess).get_user_language(user.id)
+    text = (
+        f"<h1>{get_text(language, 'help.title')}</h1><br/>"
+        f"{get_text(language, 'help.intro')}<br/><br/>"
+        f"{get_text(language, 'help.cmd_start')}<br/>"
+        f"{get_text(language, 'help.cmd_competitions')}<br/>"
+        f"{get_text(language, 'help.cmd_settings')}<br/>"
+        f"{get_text(language, 'help.cmd_help')}"
     )
+    await message.answer_rich(rich_html(text))
