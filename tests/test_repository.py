@@ -238,3 +238,46 @@ async def test_mark_seen_updates_username_preserves_language(session):
     user = await repo.get_user_by_telegram_id(111)
     assert user.username == "new_name"
     assert user.language == "ru"
+
+
+# --- per-type notification preferences ---
+
+async def test_new_user_has_default_notification_preferences(session):
+    repo = UserRepository(session)
+    user = await repo.register_user(111, username="alex", language_code="en")
+    await session.flush()
+    assert user.announcements_enabled is True
+    assert user.registration_notifications_enabled is True
+    assert user.reg_reminder_interval == 30
+
+
+async def test_set_announcements_enabled(session):
+    repo = UserRepository(session)
+    await repo.register_user(111, username="alex", language_code="en")
+    await session.flush()
+    await repo.set_announcements_enabled(111, False)
+    await session.flush()
+    assert (await repo.get_user_by_telegram_id(111)).announcements_enabled is False
+
+
+async def test_set_registration_notifications_enabled(session):
+    repo = UserRepository(session)
+    await repo.register_user(111, username="alex", language_code="en")
+    await session.flush()
+    await repo.set_registration_notifications_enabled(111, False)
+    await session.flush()
+    assert (await repo.get_user_by_telegram_id(111)).registration_notifications_enabled is False
+
+
+async def test_set_reg_reminder_interval(session):
+    repo = UserRepository(session)
+    await repo.register_user(111, username="alex", language_code="en")
+    await session.flush()
+    await repo.set_reg_reminder_interval(111, 1440)
+    await session.flush()
+    assert (await repo.get_reg_reminder_interval(111)) == 1440
+
+
+async def test_get_reg_reminder_interval_unregistered_returns_default(session):
+    repo = UserRepository(session)
+    assert await repo.get_reg_reminder_interval(999) == 30

@@ -1,16 +1,21 @@
-"""Single source of truth for competition text formatting.
+"""Single source of truth for competition text formatting (Telegram HTML).
 
 Used both by the bot's "competitions" page and by push notifications, so the
-output is always identical and localized the same way.
+output is always identical and localized the same way. Everything is rendered
+as Telegram Rich Messages (HTML): headings use ``<b>``, links use ``<a href>``,
+sections are split by a full-width separator line and lines by ``\\n``.
+
+Note: Telegram's HTML parser rejects ``<h1>``/``<hr>``/``<br>``, so headings
+and horizontal rules are emulated with supported markup.
 """
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
-import re
+from html import escape
 
 from ..competitions.disciplines import discipline_short_label, sort_discipline_codes
 from ..i18n import get_text
 
-# Separator between competition cards, spanning the full message width.
+# Separator line between blocks (emulates <hr>, unsupported by Telegram HTML).
 CARD_SEPARATOR = "─" * 18
 
 _RU_MONTHS = {
@@ -29,22 +34,15 @@ _REG_LABEL_KEYS = {
     "closed": "competitions.reg_closed",
 }
 
-# Characters that start/end formatting in Telegram legacy Markdown and must be
-# escaped inside a link label.
-_TG_MD_ESCAPE_RE = re.compile(r"([\\_*\[\]()`])")
+
+def _escape(text: str) -> str:
+    """Escape HTML specials so untrusted text renders verbatim."""
+    return escape(text, quote=True)
 
 
-def _tg_escape(text: str) -> str:
-    """Escape Telegram legacy-Markdown specials so raw text is shown verbatim."""
-    return _TG_MD_ESCAPE_RE.sub(r"\\\1", text)
-
-
-def _title_line(competition) -> str:
-    """Competition name; a Telegram Markdown link to the page when available."""
-    name = competition.name or ""
-    if not competition.url:
-        return f"🏆 {name}"
-    return f"🏆 [{_tg_escape(name)}]({competition.url})"
+def _heading(text: str) -> str:
+    """A page/notification heading (emulates <h1> with a supported tag)."""
+    return f"<b>{_escape(text)}</b>"
 
 
 def _ru_plural(count: int, forms: tuple[str, str, str]) -> str:
@@ -152,49 +150,104 @@ def disciplines_line(codes: List[str], language: str) -> str | None:
     return f"{get_text(language, 'competitions.disciplines')} {' • '.join(labels)}"
 
 
+def _title_line(competition) -> str:
+    """Bold title; an HTML link to the page when a URL is available."""
+    name = _escape(competition.name or "")
+    if not getattr(competition, "url", None):
+        return f"🏆 <b>{name}</b>"
+    return f'🏆 <b><a href="{_escape(competition.url)}">{name}</a></b>'
+
+
+def _registration_label(competition, language: str) -> str | None:
+    reg_key = _REG_LABEL_KEYS.get(competition.reg_status or "")
+    if not reg_key:
+        return None
+    label = get_text(language, reg_key)
+    if reg_key == "competitions.reg_scheduled":
+        countdown = format_registration_countdown(
+            getattr(competition, "registration_start_at", None),
+            language,
+        )
+        if countdown is not None:
+            label = countdown
+    return label
+
+
 def format_competition_card(competition, language: str = "ru") -> str:
     """A competition card without any page header.
 
     Used on the competitions page (joined with CARD_SEPARATOR) and as the body
-    of a notification.
+    of a notification. Every field sits on its own line and each block ends
+    with a blank line, matching the Rich Message style:
+
+        🏆 <b><a href="...">Name</a></b>
+
+        📅 22 August 2026
+        📍 Мисайлово
+
+        🧩 4x4 • 5x5
+
+        🟢 Registration is open
     """
-    lines = [
-        _title_line(competition),
-        "",
-        get_text(language, "competitions.date", date=format_date_range(
-            competition.date, getattr(competition, "end_date", None), language,
-        )),
-        get_text(language, "competitions.location", location=short_location(competition.location)),
+    parts = [
+        f"{_title_line(competition)}\n\n"
+        f"{get_text(language, 'competitions.date', date=format_date_range(competition.date, getattr(competition, 'end_date', None), language))}\n"
+        f"{get_text(language, 'competitions.location', location=short_location(competition.location))}"
     ]
 
     disc_line = disciplines_line(competition.disciplines or [], language)
     if disc_line:
-        lines.append("")
-        lines.append(disc_line)
+        parts.append(f"\n\n{disc_line}")
 
-    reg_key = _REG_LABEL_KEYS.get(competition.reg_status or "")
-    if reg_key:
-        label = get_text(language, reg_key)
-        if reg_key == "competitions.reg_scheduled":
-            countdown = format_registration_countdown(
-                getattr(competition, "registration_start_at", None),
-                language,
-            )
-            if countdown is not None:
-                label = countdown
-        lines.append("")
-        lines.append(label)
+    reg_label = _registration_label(competition, language)
+    if reg_label is not None:
+        parts.append(f"\n\n{reg_label}")
 
-    return "\n".join(lines)
+    return "".join(parts) + "\n\n"
+
+
+def format_competition_count(total: int, language: str = "ru") -> str:
+    """"📊 Found 1 competition" / "📊 Найдено 2 соревнования" (localized)."""
+    if language == "ru":
+        unit = _ru_plural(total, ("соревнование", "соревнования", "соревнований"))
+        return get_text(language, "competitions.count", count=total, unit=unit)
+    unit = "competition" if total == 1 else "competitions"
+    return get_text(language, "competitions.count", count=total, unit=unit)
+
+
+def format_competitions_page(
+    competitions,
+    language: str = "ru",
+    total_count: int | None = None,
+) -> str:
+    """The full "competitions" page header + cards.
+
+    Layout (no separator right under the heading)::
+
+        <b>Upcoming competitions</b>
+        📊 Found 4 competitions
+        ──────────────────
+        <card 1>
+        ──────────────────
+        <card 2>
+        ...
+    """
+    header = _heading(get_text(language, "competitions.title"))
+    if not competitions:
+        return f"{header}\n{get_text(language, 'competitions.none')}"
+
+    blocks = [header, format_competition_count(total_count or len(competitions), language)]
+    blocks.extend(format_competition_card(c, language) for c in competitions)
+    return f"\n{CARD_SEPARATOR}\n".join(blocks)
 
 
 def format_competition_notification(competition, language: str = "ru") -> str:
     """Full push-notification text: localized header + the standard card."""
-    header = get_text(language, "notifications.title")
+    header = _heading(get_text(language, "notifications.title"))
     return f"{header}\n\n{format_competition_card(competition, language)}"
 
 
 def format_registration_reminder(competition, language: str = "ru") -> str:
-    """Text for the "registration opens in 30 minutes" reminder."""
-    header = get_text(language, "notifications.reg_soon")
+    """Text for the "registration opens soon" reminder."""
+    header = _heading(get_text(language, "notifications.reg_soon"))
     return f"{header}\n\n{format_competition_card(competition, language)}"

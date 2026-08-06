@@ -19,6 +19,19 @@ class SettingsCB(CallbackData, prefix="settings"):
     action: str
 
 
+class NotifCB(CallbackData, prefix="notif"):
+    """Notification-settings submenu actions."""
+
+    action: str
+
+
+class ReminderCB(CallbackData, prefix="reminder"):
+    """Registration-reminder interval selection actions."""
+
+    action: str
+    minutes: int = 0
+
+
 class LanguageCB(CallbackData, prefix="lang"):
     """Interface language selection actions."""
 
@@ -60,17 +73,54 @@ def main_menu_keyboard(language: str = "ru") -> InlineKeyboardMarkup:
 
 
 def settings_keyboard(
-    notifications_enabled: bool,
+    announcements_enabled: bool,
+    registration_notifications_enabled: bool,
     language: str = "ru",
 ) -> InlineKeyboardMarkup:
-    """Settings screen: toggle notifications, region, disciplines, language."""
+    """Settings screen: notifications menu, region, disciplines, language."""
     kb = InlineKeyboardBuilder()
-    notif_key = "settings.notifications_off" if notifications_enabled else "settings.notifications_on"
-    kb.row(_btn(get_text(language, notif_key), SettingsCB(action="notifications")))
+    kb.row(_btn(get_text(language, "settings.notifications"), SettingsCB(action="notifications")))
     kb.row(_btn(get_text(language, "settings.region"), SettingsCB(action="region")))
     kb.row(_btn(get_text(language, "settings.disciplines"), SettingsCB(action="events")))
     kb.row(_btn(get_text(language, "settings.language"), SettingsCB(action="language")))
     kb.row(_btn(get_text(language, "back"), MenuCB(action="back")))
+    return kb.as_markup()
+
+
+def notifications_keyboard(
+    announcements_enabled: bool,
+    registration_notifications_enabled: bool,
+    language: str = "ru",
+) -> InlineKeyboardMarkup:
+    """Notification-settings screen: two toggles + reminder interval."""
+    kb = InlineKeyboardBuilder()
+    ann_key = "settings.announcement_off" if announcements_enabled else "settings.announcement_on"
+    reg_key = (
+        "settings.registration_off"
+        if registration_notifications_enabled
+        else "settings.registration_on"
+    )
+    kb.row(_btn(get_text(language, ann_key), NotifCB(action="announcements")))
+    kb.row(_btn(get_text(language, reg_key), NotifCB(action="registrations")))
+    kb.row(_btn(get_text(language, "settings.reminder_interval"), NotifCB(action="interval")))
+    kb.row(_btn(get_text(language, "back"), NotifCB(action="back")))
+    return kb.as_markup()
+
+
+def reminder_intervals_keyboard(current: int, language: str = "ru") -> InlineKeyboardMarkup:
+    """Registration-reminder interval picker (10 min … 24 hours)."""
+    from ..notifications.reminder_intervals import REMINDER_INTERVALS, reminder_interval_label
+
+    kb = InlineKeyboardBuilder()
+    for minutes in REMINDER_INTERVALS:
+        mark = "✅ " if minutes == current else "⬜ "
+        kb.row(
+            _btn(
+                mark + reminder_interval_label(minutes, language),
+                ReminderCB(action="set", minutes=minutes),
+            )
+        )
+    kb.row(_btn(get_text(language, "back"), ReminderCB(action="back")))
     return kb.as_markup()
 
 

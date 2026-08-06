@@ -14,6 +14,7 @@ from .competitions import router as competitions_router
 from .events import router as events_router
 from .regions import router as regions_router
 from .language import router as language_router
+from .notify_settings import router as notify_settings_router
 from .keyboards import main_menu_keyboard
 from .middleware import SyncUsernameMiddleware
 
@@ -25,7 +26,7 @@ logger = logging.getLogger(__name__)
 bot = (
     Bot(
         token=settings.telegram_token,
-        default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN),
+        default=DefaultBotProperties(parse_mode=ParseMode.HTML),
     )
     if settings.telegram_token
     else None
@@ -36,6 +37,7 @@ dp.message.outer_middleware(SyncUsernameMiddleware())
 dp.callback_query.outer_middleware(SyncUsernameMiddleware())
 dp.include_router(menu_router)
 dp.include_router(settings_router)
+dp.include_router(notify_settings_router)
 dp.include_router(events_router)
 dp.include_router(regions_router)
 dp.include_router(language_router)

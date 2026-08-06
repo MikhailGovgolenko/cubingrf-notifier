@@ -14,7 +14,7 @@ class TelegramNotifier:
             raise RuntimeError("TELEGRAM_TOKEN not provided in settings")
         self.bot = Bot(
             token=token,
-            default=DefaultBotProperties(parse_mode=ParseMode.MARKDOWN),
+            default=DefaultBotProperties(parse_mode=ParseMode.HTML),
         )
 
     async def send_competition(

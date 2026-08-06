@@ -4,6 +4,17 @@
   "menu.settings": "⚙️ Настройки",
 
   "settings.title": "⚙️ Настройки",
+  "settings.notifications": "🔔 Уведомления",
+  "settings.notifications_section": "🔔 Уведомления",
+  "settings.announcements": "Анонсы",
+  "settings.registrations": "Регистрации",
+  "settings.announcement_on": "🔔 Включить анонсы",
+  "settings.announcement_off": "🔔 Выключить анонсы",
+  "settings.registration_on": "⏰ Включить уведомления о регистрации",
+  "settings.registration_off": "⏰ Выключить уведомления о регистрации",
+  "settings.reminder_interval": "⏳ Интервал уведомления",
+  "settings.reminder_current": "Текущий интервал: {value}",
+  "settings.events_all": "Все события",
   "settings.notifications_on": "🔔 Включить уведомления",
   "settings.notifications_off": "🔔 Выключить уведомления",
   "settings.region": "🌍 Регионы",
@@ -41,6 +52,7 @@
   "competitions.title": "Ближайшие соревнования",
   "competitions.none": "Нет соревнований.",
   "competitions.matching": "📊 Подходит соревнований: {count}",
+  "competitions.count": "📊 Найдено {count} {unit}",
   "competitions.date": "📅 {date}",
   "competitions.location": "📍 {location}",
   "competitions.disciplines": "🧩",
@@ -52,7 +64,11 @@
   "competitions.page": "{page}/{total}",
 
   "notifications.title": "🆕 Новое соревнование!",
-  "notifications.reg_soon": "🔔 Регистрация откроется через 30 минут!",
+  "notifications.reg_soon": "🔔 Регистрация откроется скоро!",
+
+  "intervals.label_minutes": "{count} мин",
+  "intervals.label_hours": "{count} ч",
+  "intervals.label_days": "{count} дн",
 
   "back": "◀️ Назад",
   "unknown_date": "дата неизвестна"

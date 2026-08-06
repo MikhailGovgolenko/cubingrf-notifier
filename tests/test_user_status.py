@@ -1,128 +1,119 @@
 from types import SimpleNamespace
 
-from cubingrf_notifier.bot.user_status import format_user_status
-from cubingrf_notifier.bot.keyboards import events_keyboard, main_menu_keyboard
+from cubingrf_notifier.bot.user_status import format_settings_rich
+from cubingrf_notifier.bot.keyboards import (
+    events_keyboard,
+    main_menu_keyboard,
+    settings_keyboard,
+    notifications_keyboard,
+    reminder_intervals_keyboard,
+)
 from cubingrf_notifier.competitions.disciplines import DISCIPLINES, ALL_DISCIPLINE_CODES
 from cubingrf_notifier.competitions.regions import ALL_REGION_KEYS
 from cubingrf_notifier.i18n import get_text
+from cubingrf_notifier.notifications.competition_formatter import CARD_SEPARATOR
+from cubingrf_notifier.notifications.reminder_intervals import REMINDER_INTERVALS
 
 
-def _user(notifications_enabled=True, events=(), regions=()):
+def _user(announcements=True, registrations=True, events=(), regions=()):
     return SimpleNamespace(
-        notifications_enabled=notifications_enabled,
+        announcements_enabled=announcements,
+        registration_notifications_enabled=registrations,
         events=[SimpleNamespace(event_code=c) for c in events],
         regions=[SimpleNamespace(region_key=r) for r in regions],
     )
 
 
-def test_status_new_user_defaults():
-    text = format_user_status(_user(), language="ru")
-    assert "Уведомления: ✅" in text
-    assert "Язык: 🇷🇺 Русский" in text
-    assert "Регионы: Все" in text
-    assert "Дисциплины: Все" in text
+# ---------- rich settings screen ----------
+
+def test_settings_rich_ru_defaults():
+    text = format_settings_rich(_user(), language="ru")
+    assert "<b>⚙️ Настройки</b>" in text
+    assert "<b>🔔 Уведомления</b>" in text
+    assert "• Анонсы ✅" in text
+    assert "• Регистрации ✅" in text
+    assert "Регионы</b>\nВсе" in text
+    assert "Дисциплины</b>\nВсе события" in text
+    assert "Язык</b>\n🇷🇺 Русский" in text
 
 
-def test_status_notifications_disabled():
-    text = format_user_status(_user(notifications_enabled=False), language="ru")
-    assert "Уведомления: ❌" in text
+def test_settings_rich_english():
+    text = format_settings_rich(_user(), language="en")
+    assert "<b>⚙️ Settings</b>" in text
+    assert "<b>🔔 Notifications</b>" in text
+    assert "• Announcements ✅" in text
+    assert "• Registrations ✅" in text
+    assert "Regions</b>\nAll" in text
+    assert "Events</b>\nAll events" in text
+    assert "Language</b>\n🇬🇧 English" in text
 
 
-def test_status_disciplines_labels():
-    text = format_user_status(_user(events=["333", "minx", "333bf"]), language="ru")
-    assert "Дисциплины:" in text
+def test_settings_notifications_off_shows_crosses():
+    text = format_settings_rich(
+        _user(announcements=False, registrations=False),
+        language="ru",
+    )
+    assert "• Анонсы ❌" in text
+    assert "• Регистрации ❌" in text
+
+
+def test_settings_regions_list():
+    text = format_settings_rich(
+        _user(regions=["Москва", "Санкт-Петербург"]),
+        language="ru",
+    )
+    assert "• Москва" in text
+    assert "• Санкт-Петербург" in text
+
+
+def test_settings_all_regions_shows_all():
+    user = _user(regions=list(ALL_REGION_KEYS))
+    text = format_settings_rich(user, language="ru")
+    assert "Регионы</b>\nВсе" in text
+    assert "• " not in text.split("Регионы")[1].split(CARD_SEPARATOR)[0]
+
+
+def test_settings_events_list():
+    text = format_settings_rich(_user(events=["333", "minx", "333bf"]), language="ru")
     assert "• 3x3x3" in text
     assert "• Megaminx" in text
     assert "• 3x3 Blindfolded" in text
 
 
-def test_status_disciplines_codes_override_relationship():
-    user = _user(events=["333"])
-    text = format_user_status(user, event_codes=["222"], language="ru")
-    assert "• 2x2x2" in text
-    assert "3x3x3" not in text
+def test_settings_uses_rich_markup():
+    text = format_settings_rich(_user(), language="en")
+    assert text.count(CARD_SEPARATOR) == 4
+    assert "\n" in text
+    # The page title is a bold heading; the first separator comes after it.
+    assert text.startswith("<b>")
+    assert text.split("\n", 1)[0] == "<b>⚙️ Settings</b>"
 
 
-def test_status_all_disciplines_shows_all_ru():
-    user = _user(events=list(ALL_DISCIPLINE_CODES))
-    text = format_user_status(user, language="ru")
-    assert "Дисциплины: Все" in text
-    assert "• " not in text
+# ---------- settings keyboard ----------
+
+def test_settings_keyboard_has_notifications_menu_button():
+    kb = settings_keyboard(True, True, "ru")
+    buttons = [btn.text for row in kb.inline_keyboard for btn in row]
+    assert "🔔 Уведомления" in buttons
+    assert "🌍 Регионы" in buttons
+    assert "🧩 Дисциплины" in buttons
+    assert "🌐 Язык" in buttons
 
 
-def test_status_all_disciplines_shows_all_en():
-    user = _user(events=list(ALL_DISCIPLINE_CODES))
-    text = format_user_status(user, language="en")
-    assert "Events: All" in text
-    assert "• " not in text
+def test_notifications_keyboard_toggle_labels():
+    kb = notifications_keyboard(False, True, "ru")
+    texts = [btn.text for row in kb.inline_keyboard for btn in row]
+    assert "🔔 Включить анонсы" in texts
+    assert "⏰ Выключить уведомления о регистрации" in texts
+    assert "⏳ Интервал уведомления" in texts
 
 
-def test_status_partial_disciplines_lists_selection():
-    user = _user(events=["333", "minx", "clock"])
-    text = format_user_status(user, language="ru")
-    assert "Дисциплины: Все" not in text
-    assert "Дисциплины:" in text
-
-
-def test_status_discipline_labels_follow_catalog_order():
-    user = _user(events=["minx", "333", "clock"])
-    text = format_user_status(user, language="ru")
-    disci = text.split("Дисциплины:", 1)[1]
-    labels = [name for name in ("3x3x3", "Clock", "Megaminx") if f"• {name}" in disci]
-    assert labels == ["3x3x3", "Clock", "Megaminx"]
-    assert disci.index("• 3x3x3") < disci.index("• Clock") < disci.index("• Megaminx")
-
-
-def test_status_regions_from_relationship():
-    text = format_user_status(_user(regions=["Москва", "Санкт-Петербург"]), language="ru")
-    assert "Регионы:" in text
-    assert "• Москва" in text
-    assert "• Санкт-Петербург" in text
-
-
-def test_status_regions_empty_means_all():
-    text = format_user_status(_user(regions=["Москва"]), region_keys=[], language="ru")
-    assert "Регионы: Все" in text
-
-
-def test_status_all_regions_shows_all_ru():
-    user = _user(regions=list(ALL_REGION_KEYS))
-    text = format_user_status(user, language="ru")
-    assert "Регионы: Все" in text
-    assert "• " not in text
-
-
-def test_status_all_regions_shows_all_en():
-    user = _user(regions=list(ALL_REGION_KEYS))
-    text = format_user_status(user, language="en")
-    assert "Regions: All" in text
-    assert "• " not in text
-
-
-def test_status_single_region_shows_name():
-    user = _user(regions=["Москва"])
-    text = format_user_status(user, language="ru")
-    assert "Регионы: Все" not in text
-    assert "• Москва" in text
-
-
-def test_status_few_regions_shows_list_in_catalog_order():
-    user = _user(regions=["Омская область", "Москва", "Республика Коми"])
-    text = format_user_status(user, language="ru")
-    assert "Регионы: Все" not in text
-    assert "Регионы:" in text
-    assert "• Москва" in text
-    assert "• Омская область" in text
-    assert "• Республика Коми" in text
-    assert text.index("• Москва") < text.index("• Омская область") < text.index("• Республика Коми")
-
-
-def test_status_english():
-    text = format_user_status(_user(), language="en")
-    assert "Notifications: ✅" in text
-    assert "Language: 🇬🇧 English" in text
-    assert "Regions: All" in text
-    assert "Events: All" in text
+def test_reminder_intervals_keyboard_marks_current():
+    kb = reminder_intervals_keyboard(30, "ru")
+    texts = [btn.text for row in kb.inline_keyboard for btn in row]
+    assert any(t.startswith("✅ ") for t in texts)
+    assert texts[0] == "⬜ 10 мин"
+    assert "✅ 30 мин" in texts
 
 
 def test_main_menu_has_only_two_actions():

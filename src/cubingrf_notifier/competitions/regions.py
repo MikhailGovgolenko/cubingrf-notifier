@@ -2,13 +2,14 @@
 
 Region names are stored in ``Competition.location`` as ``"<Region>, <City>"``,
 so the region is always the part before the first comma. Moscow and Moscow
-Oblast are considered one region ("Москва") per product decision, so both
-location prefixes normalize to the same canonical key.
+Oblast are two distinct selectable regions; existing users who chose "Москва"
+are migrated to have both (see the 0009 migration).
 """
 
 # Canonical region keys (what the user selects and what is stored in user_regions).
 REGIONS: list[tuple[str, str]] = [
     ("Москва", "Москва"),
+    ("Московская область", "Московская область"),
     ("Санкт-Петербург", "Санкт-Петербург"),
     ("Новосибирская область", "Новосибирская область"),
     ("Приморский край", "Приморский край"),
@@ -47,10 +48,10 @@ def sort_region_keys(keys) -> list[str]:
     return sorted(keys, key=lambda k: _REGION_ORDER.get(k, len(_REGION_ORDER)))
 
 # Location prefixes (from Competition.location) that map onto a canonical region.
-# Moscow and Moscow Oblast are a single region "Москва".
+# Moscow and Moscow Oblast are two distinct regions.
 _REGION_PREFIXES: dict[str, str] = {
     "Москва": "Москва",
-    "Московская область": "Москва",
+    "Московская область": "Московская область",
 }
 
 # Everything outside the known catalog is left as-is so unknown regions can be

@@ -11,8 +11,8 @@ from ..database.models import Competition
 from ..database.session import AsyncSessionLocal
 from ..database.repository import CompetitionRepository, UserRepository
 from ..notifications.competition_formatter import (
-    CARD_SEPARATOR,
     format_competition_card,
+    format_competitions_page,
     format_date,
     format_date_range,
     short_location,
@@ -59,13 +59,11 @@ def _format_competitions(
     total_count: int | None = None,
 ) -> str:
     if not comps:
-        return get_text(language, "competitions.title") + "\n\n" + get_text(language, "competitions.none")
-
-    blocks = [get_text(language, "competitions.title")]
-    if total_count is not None:
-        blocks.append(get_text(language, "competitions.matching", count=total_count))
-    blocks.extend(_format_competition(c, language) for c in comps)
-    return f"\n\n{CARD_SEPARATOR}\n\n".join(blocks)
+        return (
+            f"<b>{get_text(language, 'competitions.title')}</b>\n"
+            f"{get_text(language, 'competitions.none')}"
+        )
+    return format_competitions_page(comps, language, total_count)
 
 
 def filter_competitions(

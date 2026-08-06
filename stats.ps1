@@ -22,50 +22,74 @@ FROM (
     SELECT 7, 'Notifications disabled:   ' || COUNT(*) FILTER (WHERE notifications_enabled = false)::text
         FROM users
     UNION ALL
-    SELECT 8, 'Russian users:            ' || COUNT(*) FILTER (WHERE language = 'ru')::text
+    SELECT 8, 'Announcements enabled:    ' || COUNT(*) FILTER (WHERE announcements_enabled = true)::text
         FROM users
     UNION ALL
-    SELECT 9, 'English users:            ' || COUNT(*) FILTER (WHERE language = 'en')::text
+    SELECT 9, 'Registration notif on:    ' || COUNT(*) FILTER (WHERE registration_notifications_enabled = true)::text
         FROM users
     UNION ALL
-    SELECT 10, 'With username:            ' || COUNT(*) FILTER (WHERE username IS NOT NULL AND username != '')::text
+    SELECT 10, 'Interval 10 min:          ' || COUNT(*)::text
+        FROM users WHERE reg_reminder_interval = 10
+    UNION ALL
+    SELECT 11, 'Interval 30 min:          ' || COUNT(*)::text
+        FROM users WHERE reg_reminder_interval = 30
+    UNION ALL
+    SELECT 12, 'Interval 1 hour:          ' || COUNT(*)::text
+        FROM users WHERE reg_reminder_interval = 60
+    UNION ALL
+    SELECT 13, 'Interval 3 hours:         ' || COUNT(*)::text
+        FROM users WHERE reg_reminder_interval = 180
+    UNION ALL
+    SELECT 14, 'Interval 12 hours:        ' || COUNT(*)::text
+        FROM users WHERE reg_reminder_interval = 720
+    UNION ALL
+    SELECT 15, 'Interval 24 hours:        ' || COUNT(*)::text
+        FROM users WHERE reg_reminder_interval = 1440
+    UNION ALL
+    SELECT 16, 'Russian users:            ' || COUNT(*) FILTER (WHERE language = 'ru')::text
         FROM users
     UNION ALL
-    SELECT 11, 'Active last 24h:          ' || COUNT(*) FILTER (WHERE last_seen_at IS NOT NULL AND last_seen_at >= NOW() - INTERVAL '24 hours')::text
+    SELECT 17, 'English users:            ' || COUNT(*) FILTER (WHERE language = 'en')::text
         FROM users
     UNION ALL
-    SELECT 12, 'Active last 7 days:       ' || COUNT(*) FILTER (WHERE last_seen_at IS NOT NULL AND last_seen_at >= NOW() - INTERVAL '7 days')::text
+    SELECT 18, 'With username:            ' || COUNT(*) FILTER (WHERE username IS NOT NULL AND username != '')::text
         FROM users
     UNION ALL
-    SELECT 13, 'Active last 30 days:      ' || COUNT(*) FILTER (WHERE last_seen_at IS NOT NULL AND last_seen_at >= NOW() - INTERVAL '30 days')::text
+    SELECT 19, 'Active last 24h:          ' || COUNT(*) FILTER (WHERE last_seen_at IS NOT NULL AND last_seen_at >= NOW() - INTERVAL '24 hours')::text
         FROM users
     UNION ALL
-    SELECT 14, 'Never seen:               ' || COUNT(*) FILTER (WHERE last_seen_at IS NULL)::text
+    SELECT 20, 'Active last 7 days:       ' || COUNT(*) FILTER (WHERE last_seen_at IS NOT NULL AND last_seen_at >= NOW() - INTERVAL '7 days')::text
         FROM users
     UNION ALL
-    SELECT 15, ''
-    UNION ALL
-    SELECT 16, 'First user:               ' || to_char(MIN(created_at), 'YYYY-MM-DD HH24:MI:SSOF')
+    SELECT 21, 'Active last 30 days:      ' || COUNT(*) FILTER (WHERE last_seen_at IS NOT NULL AND last_seen_at >= NOW() - INTERVAL '30 days')::text
         FROM users
     UNION ALL
-    SELECT 17, 'Latest user:              ' || to_char(MAX(created_at), 'YYYY-MM-DD HH24:MI:SSOF')
+    SELECT 22, 'Never seen:               ' || COUNT(*) FILTER (WHERE last_seen_at IS NULL)::text
         FROM users
     UNION ALL
-    SELECT 18, ''
+    SELECT 23, ''
     UNION ALL
-    SELECT 19, '=============================='
+    SELECT 24, 'First user:               ' || to_char(MIN(created_at), 'YYYY-MM-DD HH24:MI:SSOF')
+        FROM users
     UNION ALL
-    SELECT 20, '          Users details'
+    SELECT 25, 'Latest user:              ' || to_char(MAX(created_at), 'YYYY-MM-DD HH24:MI:SSOF')
+        FROM users
     UNION ALL
-    SELECT 21, '=============================='
+    SELECT 26, ''
     UNION ALL
-    SELECT 22, ''
+    SELECT 27, '=============================='
     UNION ALL
-    SELECT 23, '=============================='
+    SELECT 28, '          Users details'
     UNION ALL
-    SELECT 24, '          Blocked users'
+    SELECT 29, '=============================='
     UNION ALL
-    SELECT 25, '=============================='
+    SELECT 30, ''
+    UNION ALL
+    SELECT 31, '=============================='
+    UNION ALL
+    SELECT 32, '          Blocked users'
+    UNION ALL
+    SELECT 33, '=============================='
 ) stats
 ORDER BY sort;
 "@

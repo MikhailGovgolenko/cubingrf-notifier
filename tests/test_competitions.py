@@ -6,7 +6,10 @@ from cubingrf_notifier.bot.competitions import (
     _format_date,
     _format_date_range,
     _format_competitions,
+)
+from cubingrf_notifier.notifications.competition_formatter import (
     CARD_SEPARATOR,
+    format_competition_count,
 )
 from cubingrf_notifier.bot.keyboards import competitions_keyboard
 from cubingrf_notifier.competitions.disciplines import ALL_DISCIPLINE_CODES
@@ -46,7 +49,7 @@ def test_format_date_unknown():
 
 def test_competition_card_ru_open():
     text = _format_competition(_comp(disciplines=["333", "444"]), "ru")
-    assert "🏆 [Moscow Open](https://cubingrf.org/competitions/1)" in text
+    assert '🏆 <b><a href="https://cubingrf.org/competitions/1">Moscow Open</a></b>' in text
     assert "📅 7 августа 2026" in text
     assert "📍 Москва" in text
     assert "🧩 3x3 • 4x4" in text
@@ -82,7 +85,6 @@ def test_competition_card_all_disciplines_listed():
 def test_card_disciplines_follow_catalog_order():
     shuffled = ["333mbf", "sq1", "333", "pyram", "clock", "555bf"]
     text = _format_competition(_comp(disciplines=shuffled), "ru")
-    labels = [ALL_DISCIPLINE_CODES]  # catalog order is the single source
     assert "🧩 3x3 • Clock • Pyraminx • Square-1 • 5BLD • MBLD" in text
 
 
@@ -135,7 +137,17 @@ def test_format_competitions_full_width_separator():
 def test_format_competitions_shows_matching_count():
     comps = [_comp(name="A"), _comp(name="B")]
     text = _format_competitions(comps, "ru", total_count=12)
-    assert "📊 Подходит соревнований: 12" in text
+    assert "📊 Найдено 12 соревнований" in text
+
+
+def test_format_competitions_single_competition_count_ru():
+    assert format_competition_count(1, "ru") == "📊 Найдено 1 соревнование"
+
+
+def test_format_competitions_count_en_singular_and_plural():
+    assert format_competition_count(1, "en") == "📊 Found 1 competition"
+    assert format_competition_count(2, "en") == "📊 Found 2 competitions"
+    assert format_competition_count(10, "en") == "📊 Found 10 competitions"
 
 
 def test_competitions_keyboard_single_page_hides_indicator():

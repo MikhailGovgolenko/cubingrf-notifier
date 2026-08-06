@@ -27,6 +27,14 @@ class User(Base):
     telegram_id = Column(BigInteger, unique=True, nullable=False)
     username = Column(String(64), nullable=True)
     notifications_enabled = Column(Boolean, nullable=False, default=True, server_default="true")
+    # Independent per-type notification switches; both default to on so the
+    # behaviour for existing users is unchanged. ``notifications_enabled``
+    # stays as the master on/off switch (used by /start and /stop).
+    announcements_enabled = Column(Boolean, nullable=False, default=True, server_default="true")
+    registration_notifications_enabled = Column(Boolean, nullable=False, default=True, server_default="true")
+    # How far in advance (minutes) to remind about an opening registration.
+    # One of the values in REMINDER_INTERVALS; default 30 minutes.
+    reg_reminder_interval = Column(Integer, nullable=False, default=30, server_default="30")
     # Interface language (two-letter code, see i18n.DEFAULT_LANGUAGE).
     language = Column(String(10), nullable=False, default="ru", server_default="ru")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

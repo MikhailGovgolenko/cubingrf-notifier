@@ -1,6 +1,8 @@
-"""Reminder that a competition's registration opens in ~30 minutes.
+"""Reminder that a competition's registration opens in some time.
 
-The decision helper (``should_send_registration_reminder``) is pure and
+Each user picks their own lead time (see ``User.reg_reminder_interval``), so a
+reminder fires for a user only inside their chosen window before registration
+opens. The decision helper (``should_send_registration_reminder``) is pure and
 unit-testable; ``check_registration_reminders`` sends the due reminders using
 the same matcher and notifier as regular notifications, so recipients follow
 their notification/region/event settings and language.
@@ -16,7 +18,8 @@ from ..database.repository import (
     KIND_REG_SOON,
 )
 from ..database.session import AsyncSessionLocal
-from .matcher import should_notify_user
+from ..notifications.reminder_intervals import DEFAULT_REMINDER_INTERVAL
+from .matcher import should_notify_user, KIND_REG_SOON as MATCH_KIND_REG_SOON
 from .telegram import TelegramNotifier
 
 from aiogram.exceptions import TelegramForbiddenError
@@ -29,12 +32,13 @@ REMINDER_WINDOW = timedelta(minutes=30)
 def should_send_registration_reminder(
     registration_start_at: datetime | None,
     now: datetime | None = None,
+    window: timedelta = REMINDER_WINDOW,
 ) -> bool:
-    """True when the 30-minute reminder should fire.
+    """True when the registration reminder should fire.
 
-    True only while ``0 < registration_start_at - now <= 30 minutes``: never
-    after the moment passed, never without a known opening time, and never
-    more than 30 minutes in advance. Naive datetimes are treated as UTC.
+    True only while ``0 < registration_start_at - now <= window``: never after
+    the moment passed, never without a known opening time, and never more than
+    ``window`` in advance. Naive datetimes are treated as UTC.
     """
     if registration_start_at is None:
         return False
@@ -45,11 +49,11 @@ def should_send_registration_reminder(
     if now.tzinfo is None:
         now = now.replace(tzinfo=timezone.utc)
     remaining = registration_start_at.astimezone(timezone.utc) - now.astimezone(timezone.utc)
-    return timedelta(0) < remaining <= REMINDER_WINDOW
+    return timedelta(0) < remaining <= window
 
 
 async def check_registration_reminders() -> None:
-    """Send reminders for competitions opening within 30 minutes.
+    """Send reminders for competitions opening within each user's window.
 
     The deduplication happens in the notifications table: the
     (user, competition, kind='reg_soon') unique constraint means a reminder is
@@ -82,13 +86,16 @@ async def check_registration_reminders() -> None:
         sent = 0
         try:
             for comp in candidates:
-                if not should_send_registration_reminder(comp.registration_start_at, now):
-                    continue
                 for user in users:
+                    interval = user.reg_reminder_interval or DEFAULT_REMINDER_INTERVAL
+                    window = timedelta(minutes=interval)
+                    if not should_send_registration_reminder(comp.registration_start_at, now, window):
+                        continue
                     try:
                         if not should_notify_user(
                             user,
                             comp,
+                            kind=MATCH_KIND_REG_SOON,
                             user_region_keys=user_regions[user.telegram_id],
                             user_event_codes=user_events[user.telegram_id],
                         ):

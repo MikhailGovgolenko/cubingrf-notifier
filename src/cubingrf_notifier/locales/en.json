@@ -4,6 +4,17 @@
   "menu.settings": "⚙️ Settings",
 
   "settings.title": "⚙️ Settings",
+  "settings.notifications": "🔔 Notifications",
+  "settings.notifications_section": "🔔 Notifications",
+  "settings.announcements": "Announcements",
+  "settings.registrations": "Registrations",
+  "settings.announcement_on": "🔔 Enable announcements",
+  "settings.announcement_off": "🔔 Disable announcements",
+  "settings.registration_on": "⏰ Enable registration notifications",
+  "settings.registration_off": "⏰ Disable registration notifications",
+  "settings.reminder_interval": "⏳ Reminder interval",
+  "settings.reminder_current": "Current interval: {value}",
+  "settings.events_all": "All events",
   "settings.notifications_on": "🔔 Enable notifications",
   "settings.notifications_off": "🔔 Disable notifications",
   "settings.region": "🌍 Regions",
@@ -41,6 +52,7 @@
   "competitions.title": "Upcoming competitions",
   "competitions.none": "No competitions.",
   "competitions.matching": "📊 Matching competitions: {count}",
+  "competitions.count": "📊 Found {count} {unit}",
   "competitions.date": "📅 {date}",
   "competitions.location": "📍 {location}",
   "competitions.disciplines": "🧩",
@@ -52,7 +64,11 @@
   "competitions.page": "{page}/{total}",
 
   "notifications.title": "🆕 New competition!",
-  "notifications.reg_soon": "🔔 Registration opens in 30 minutes!",
+  "notifications.reg_soon": "🔔 Registration opens soon!",
+
+  "intervals.label_minutes": "{count} min",
+  "intervals.label_hours": "{count} h",
+  "intervals.label_days": "{count} days",
 
   "back": "◀️ Back",
   "unknown_date": "date unknown"

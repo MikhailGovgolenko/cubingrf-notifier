@@ -39,9 +39,9 @@ def test_region_key_from_location_simple():
     assert region_key_from_location("Новосибирская область, Новосибирск") == "Новосибирская область"
 
 
-def test_region_key_from_location_moscow_union():
+def test_region_key_from_location_moscow_split():
     assert region_key_from_location("Москва, Москва") == "Москва"
-    assert region_key_from_location("Московская область, Щёлково") == "Москва"
+    assert region_key_from_location("Московская область, Щёлково") == "Московская область"
 
 
 def test_region_key_from_location_unknown_preserved():
@@ -51,6 +51,12 @@ def test_region_key_from_location_unknown_preserved():
 def test_region_key_from_location_none_and_empty():
     assert region_key_from_location(None) is None
     assert region_key_from_location("") is None
+
+
+def test_moscow_oblong_is_a_distinct_region():
+    assert "Москва" in ALL_REGION_KEYS
+    assert "Московская область" in ALL_REGION_KEYS
+    assert ALL_REGION_KEYS.index("Москва") < ALL_REGION_KEYS.index("Московская область")
 
 
 def test_all_region_keys_and_labels_match():
@@ -111,6 +117,10 @@ def test_filter_by_regions_only():
              _comp(location="Московская область, Щёлково"),
              _comp(location="Омская область, Омск")]
     out = filter_competitions(comps, region_keys=["Москва"])
+    assert {c.location for c in out} == {"Москва, Москва"}
+    out = filter_competitions(comps, region_keys=["Московская область"])
+    assert {c.location for c in out} == {"Московская область, Щёлково"}
+    out = filter_competitions(comps, region_keys=["Москва", "Московская область"])
     assert {c.location for c in out} == {"Москва, Москва", "Московская область, Щёлково"}
 
 
@@ -147,7 +157,7 @@ def test_regions_keyboard_checkmarks():
     kb = regions_keyboard(["Москва"])
     buttons = [btn.text for row in kb.inline_keyboard for btn in row]
     assert buttons[0] == "✅ Москва"
-    assert buttons[1] == "⬜ Санкт-Петербург"
+    assert buttons[1] == "⬜ Московская область"
 
 
 def test_regions_keyboard_bulk_actions_below_list():

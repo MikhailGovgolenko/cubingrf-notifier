@@ -1,13 +1,25 @@
 from types import SimpleNamespace
 
-from cubingrf_notifier.notifications.matcher import should_notify_user
+from cubingrf_notifier.notifications.matcher import (
+    should_notify_user,
+    KIND_ANNOUNCEMENT,
+    KIND_REG_SOON,
+)
 from cubingrf_notifier.competitions.regions import ALL_REGION_KEYS
 from cubingrf_notifier.competitions.disciplines import ALL_DISCIPLINE_CODES
 
 
-def _user(enabled=True, regions=None, events=None):
+def _user(
+    enabled=True,
+    regions=None,
+    events=None,
+    announcements=True,
+    registrations=True,
+):
     return SimpleNamespace(
         notifications_enabled=enabled,
+        announcements_enabled=announcements,
+        registration_notifications_enabled=registrations,
         regions=[SimpleNamespace(region_key=r) for r in (regions or [])],
         events=[SimpleNamespace(event_code=c) for c in (events or [])],
     )
@@ -27,8 +39,10 @@ def test_region_matches_notifies():
     assert should_notify_user(user, _comp(location="Москва, Москва")) is True
 
 
-def test_region_matches_via_moscow_oblong_alias():
+def test_region_moscow_oblong_is_distinct():
     user = _user(regions=["Москва"])
+    assert should_notify_user(user, _comp(location="Московская область, Щёлково")) is False
+    user = _user(regions=["Московская область"])
     assert should_notify_user(user, _comp(location="Московская область, Щёлково")) is True
 
 
@@ -84,3 +98,37 @@ def test_explicit_region_keys_argument_wins():
         _comp(location="Омская область, Омск"),
         user_region_keys=["Омская область"],
     ) is True
+
+
+# ---------- per-type notification switches ----------
+
+def test_announcements_off_blocks_announcement_kind():
+    user = _user(announcements=False)
+    assert should_notify_user(user, _comp(), kind=KIND_ANNOUNCEMENT) is False
+
+
+def test_announcements_off_does_not_block_registration_kind():
+    user = _user(announcements=False)
+    assert should_notify_user(user, _comp(), kind=KIND_REG_SOON) is True
+
+
+def test_registrations_off_blocks_registration_kind():
+    user = _user(registrations=False)
+    assert should_notify_user(user, _comp(), kind=KIND_REG_SOON) is False
+
+
+def test_registrations_off_does_not_block_announcement_kind():
+    user = _user(registrations=False)
+    assert should_notify_user(user, _comp(), kind=KIND_ANNOUNCEMENT) is True
+
+
+def test_default_kind_is_announcement():
+    user = _user(announcements=False)
+    assert should_notify_user(user, _comp()) is False
+    assert should_notify_user(user, _comp(), kind="new") is False
+
+
+def test_both_off_blocks_both_kinds():
+    user = _user(announcements=False, registrations=False)
+    assert should_notify_user(user, _comp(), kind=KIND_ANNOUNCEMENT) is False
+    assert should_notify_user(user, _comp(), kind=KIND_REG_SOON) is False

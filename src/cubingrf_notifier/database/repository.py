@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from .models import Competition, User, Notification, UserEvent, UserRegion
 from ..competitions.models import CompetitionDTO
 from ..i18n import DEFAULT_LANGUAGE, get_user_language
+from ..notifications.reminder_intervals import DEFAULT_REMINDER_INTERVAL
 
 logger = logging.getLogger(__name__)
 
@@ -73,13 +74,50 @@ class UserRepository:
         return True
 
     async def set_notifications_enabled(self, telegram_id: int, enabled: bool) -> Optional[User]:
-        """Flip subscription on/off. Returns the user or None if not registered."""
+        """Flip the master subscription switch on/off. Returns the user or None."""
         user = await self.get_user_by_telegram_id(telegram_id)
         if user is None:
             return None
         user.notifications_enabled = enabled
         await self.session.flush()
         return user
+
+    async def set_announcements_enabled(self, telegram_id: int, enabled: bool) -> Optional[User]:
+        """Flip the competition-announcements switch. Returns the user or None."""
+        user = await self.get_user_by_telegram_id(telegram_id)
+        if user is None:
+            return None
+        user.announcements_enabled = enabled
+        await self.session.flush()
+        return user
+
+    async def set_registration_notifications_enabled(self, telegram_id: int, enabled: bool) -> Optional[User]:
+        """Flip the registration-opening switch. Returns the user or None."""
+        user = await self.get_user_by_telegram_id(telegram_id)
+        if user is None:
+            return None
+        user.registration_notifications_enabled = enabled
+        await self.session.flush()
+        return user
+
+    async def set_reg_reminder_interval(self, telegram_id: int, minutes: int) -> Optional[User]:
+        """Set how far in advance (minutes) to remind about registration.
+
+        Returns None if the user is not registered.
+        """
+        user = await self.get_user_by_telegram_id(telegram_id)
+        if user is None:
+            return None
+        user.reg_reminder_interval = minutes
+        await self.session.flush()
+        return user
+
+    async def get_reg_reminder_interval(self, telegram_id: int) -> int:
+        """The user's configured reminder interval in minutes (default if unset)."""
+        user = await self.get_user_by_telegram_id(telegram_id)
+        if user is None or user.reg_reminder_interval is None:
+            return DEFAULT_REMINDER_INTERVAL
+        return user.reg_reminder_interval
 
     async def set_blocked(self, telegram_id: int) -> bool:
         """Mark a user as blocked/offline (bot could not reach them).

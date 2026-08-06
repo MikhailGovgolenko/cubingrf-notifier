@@ -120,7 +120,7 @@ async def test_discipline_back_returns_to_settings(session_maker):
     cb = _FakeCallback(user_id)
     with patch("cubingrf_notifier.bot.user_status.AsyncSessionLocal", session_maker):
         await cb_events_back(cb)
-    assert cb.message.text.startswith(get_text("ru", "settings.title"))
+    assert cb.message.text.count(get_text("ru", "settings.title")) > 0
 
 
 # --- regions: actions keep the user on the picker screen ---
@@ -135,7 +135,7 @@ async def test_region_toggle_stays_on_picker(session_maker):
     assert get_text("ru", "settings.title") not in cb.message.text
     rows = cb.message.reply_markup.inline_keyboard
     assert rows[0][0].text == "✅ Москва"
-    assert rows[1][0].text == "⬜ Санкт-Петербург"
+    assert rows[1][0].text == "⬜ Московская область"
 
 
 async def test_region_select_all_stays_on_picker(session_maker):
@@ -168,4 +168,4 @@ async def test_region_back_returns_to_settings(session_maker):
     cb = _FakeCallback(user_id)
     with patch("cubingrf_notifier.bot.user_status.AsyncSessionLocal", session_maker):
         await cb_regions_back(cb)
-    assert cb.message.text.startswith(get_text("ru", "settings.title"))
+    assert cb.message.text.count(get_text("ru", "settings.title")) > 0

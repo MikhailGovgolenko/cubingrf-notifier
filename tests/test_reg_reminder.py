@@ -135,10 +135,10 @@ def _full_comp():
 def test_reminder_language_ru_and_en():
     ru = format_registration_reminder(_full_comp(), "ru")
     en = format_registration_reminder(_full_comp(), "en")
-    assert "🔔 Регистрация откроется через 30 минут!" in ru
-    assert "🔔 Registration opens in 30 minutes!" in en
-    assert "🏆 [Moscow Open](https://cubingrf.org/competitions/MoscowOpen2026)" in ru
-    assert "🏆 [Moscow Open](https://cubingrf.org/competitions/MoscowOpen2026)" in en
+    assert "🔔 Регистрация откроется скоро!" in ru
+    assert "🔔 Registration opens soon!" in en
+    assert '<b><a href="https://cubingrf.org/competitions/MoscowOpen2026">Moscow Open</a></b>' in ru
+    assert '<b><a href="https://cubingrf.org/competitions/MoscowOpen2026">Moscow Open</a></b>' in en
 
 
 # ---------- deduplication per kind ----------

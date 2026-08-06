@@ -39,7 +39,7 @@ def _utc(*args, **kwargs):
 def test_notification_ru_all_fields():
     text = format_competition_notification(_comp(), "ru")
     assert "🆕 Новое соревнование!" in text
-    assert "🏆 [Moscow Open](https://cubingrf.org/competitions/1)" in text
+    assert '<b><a href="https://cubingrf.org/competitions/1">Moscow Open</a></b>' in text
     assert "📅 7 августа 2026" in text
     assert "📍 Москва" in text
     assert "🧩 3x3 • 4x4" in text
@@ -50,7 +50,7 @@ def test_notification_ru_all_fields():
 def test_notification_en_all_fields():
     text = format_competition_notification(_comp(), "en")
     assert "🆕 New competition!" in text
-    assert "🏆 [Moscow Open](https://cubingrf.org/competitions/1)" in text
+    assert '<b><a href="https://cubingrf.org/competitions/1">Moscow Open</a></b>' in text
     assert "📅 7 August 2026" in text
     assert "📍 Москва" in text
     assert "🧩 3x3 • 4x4" in text
@@ -62,7 +62,7 @@ def test_notification_contains_card():
     comp = _comp()
     card = format_competition_card(comp, "ru")
     notif = format_competition_notification(comp, "ru")
-    assert notif == f"🆕 Новое соревнование!\n\n{card}"
+    assert notif == f"<b>🆕 Новое соревнование!</b>\n\n{card}"
 
 
 def test_notification_matches_competition_page_card():
@@ -108,33 +108,39 @@ def test_date_range_localized_both_langs():
 
 # ---------- title link ----------
 
-def test_title_is_markdown_link():
+def test_title_is_html_link():
     text = format_competition_card(_comp(), "ru")
-    assert "🏆 [Moscow Open](https://cubingrf.org/competitions/1)" in text
+    assert '<b><a href="https://cubingrf.org/competitions/1">Moscow Open</a></b>' in text
     assert "🔗" not in text
 
 
 def test_title_without_url_is_plain():
     text = format_competition_card(_comp(url=None), "ru")
-    assert "🏆 Moscow Open" in text
+    assert "🏆 <b>Moscow Open</b>" in text
     assert "[" not in text.split("🏆")[1]
 
 
-def test_title_escapes_markdown_specials():
+def test_title_escapes_html_specials():
+    comp = _comp(name="SPB <Cup> & Test", url="https://cubingrf.org/competitions/X")
+    text = format_competition_card(comp, "ru")
+    assert "SPB &lt;Cup&gt; &amp; Test" in text
+
+
+def test_title_preserves_markdown_specials():
     comp = _comp(name="SPB *Cup* [test] (2026)", url="https://cubingrf.org/competitions/X")
     text = format_competition_card(comp, "ru")
-    assert r"🏆 [SPB \*Cup\* \[test\] \(2026\)](https://cubingrf.org/competitions/X)" in text
+    assert "SPB *Cup* [test] (2026)" in text
 
 
-def test_title_escapes_underscore_in_name():
+def test_title_keeps_underscore_in_name():
     comp = _comp(name="The _Best_ Comp", url="https://cubingrf.org/competitions/Y")
     text = format_competition_card(comp, "ru")
-    assert r"[The \_Best\_ Comp]" in text
+    assert ">The _Best_ Comp<" in text
 
 
 def test_title_link_used_in_notifications_too():
     text = format_competition_notification(_comp(), "ru")
-    assert "[Moscow Open](https://cubingrf.org/competitions/1)" in text
+    assert '<a href="https://cubingrf.org/competitions/1">Moscow Open</a>' in text
 
 
 # ---------- registration countdown ----------
