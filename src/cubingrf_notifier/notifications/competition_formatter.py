@@ -177,33 +177,42 @@ def format_competition_card(competition, language: str = "ru") -> str:
     """A competition card without any page header.
 
     Used on the competitions page (joined with CARD_SEPARATOR) and as the body
-    of a notification. Every field sits on its own line and each block ends
-    with a blank line, matching the Rich Message style:
+    of a notification. Each field sits on its own line with no blank lines
+    between them, matching the Rich Message style:
 
         🏆 <b><a href="...">Name</a></b>
-
         📅 22 August 2026
         📍 Мисайлово
-
         🧩 4x4 • 5x5
-
         🟢 Registration is open
     """
-    parts = [
-        f"{_title_line(competition)}\n\n"
-        f"{get_text(language, 'competitions.date', date=format_date_range(competition.date, getattr(competition, 'end_date', None), language))}\n"
-        f"{get_text(language, 'competitions.location', location=short_location(competition.location))}"
+    lines = [
+        _title_line(competition),
+        get_text(
+            language,
+            "competitions.date",
+            date=format_date_range(
+                competition.date,
+                getattr(competition, "end_date", None),
+                language,
+            ),
+        ),
+        get_text(
+            language,
+            "competitions.location",
+            location=short_location(competition.location),
+        ),
     ]
 
     disc_line = disciplines_line(competition.disciplines or [], language)
     if disc_line:
-        parts.append(f"\n\n{disc_line}")
+        lines.append(disc_line)
 
     reg_label = _registration_label(competition, language)
     if reg_label is not None:
-        parts.append(f"\n\n{reg_label}")
+        lines.append(reg_label)
 
-    return "".join(parts) + "\n\n"
+    return "\n".join(lines)
 
 
 def format_competition_count(total: int, language: str = "ru") -> str:
@@ -226,9 +235,13 @@ def format_competitions_page(
 
         <b>Upcoming competitions</b>
         📊 Found 4 competitions
+
         ──────────────────
+
         <card 1>
+
         ──────────────────
+
         <card 2>
         ...
     """
@@ -236,9 +249,13 @@ def format_competitions_page(
     if not competitions:
         return f"{header}\n{get_text(language, 'competitions.none')}"
 
-    blocks = [header, format_competition_count(total_count or len(competitions), language)]
-    blocks.extend(format_competition_card(c, language) for c in competitions)
-    return f"\n{CARD_SEPARATOR}\n".join(blocks)
+    count_line = format_competition_count(total_count or len(competitions), language)
+    cards = f"\n\n{CARD_SEPARATOR}\n\n".join(
+        format_competition_card(c, language).rstrip("\n") for c in competitions
+    )
+    return (
+        f"{header}\n{count_line}\n\n{CARD_SEPARATOR}\n\n{cards}"
+    )
 
 
 def format_competition_notification(competition, language: str = "ru") -> str:

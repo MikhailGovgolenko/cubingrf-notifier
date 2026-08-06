@@ -45,13 +45,13 @@ def _notifications_text(user, language: str) -> str:
         f"{get_text(language, 'settings.reminder_interval')}: {reminder_interval_label(user.reg_reminder_interval, language)}",
     ]
     body = "\n".join(lines)
-    return f"<b>{get_text(language, 'settings.notifications')}</b>\n{CARD_SEPARATOR}\n{body}"
+    return f"<b>{get_text(language, 'settings.notifications')}</b>\n\n{CARD_SEPARATOR}\n\n{body}"
 
 
 def _reminder_text(user, language: str) -> str:
     return (
-        f"<b>{get_text(language, 'settings.reminder_interval')}</b>\n"
-        f"{CARD_SEPARATOR}\n{get_text(language, 'settings.reminder_current', value=reminder_interval_label(user.reg_reminder_interval, language))}"
+        f"<b>{get_text(language, 'settings.reminder_interval')}</b>\n\n"
+        f"{CARD_SEPARATOR}\n\n{get_text(language, 'settings.reminder_current', value=reminder_interval_label(user.reg_reminder_interval, language))}"
     )
 
 

@@ -10,6 +10,7 @@ from cubingrf_notifier.bot.competitions import (
 from cubingrf_notifier.notifications.competition_formatter import (
     CARD_SEPARATOR,
     format_competition_count,
+    format_competitions_page,
 )
 from cubingrf_notifier.bot.keyboards import competitions_keyboard
 from cubingrf_notifier.competitions.disciplines import ALL_DISCIPLINE_CODES
@@ -138,6 +139,27 @@ def test_format_competitions_shows_matching_count():
     comps = [_comp(name="A"), _comp(name="B")]
     text = _format_competitions(comps, "ru", total_count=12)
     assert "📊 Найдено 12 соревнований" in text
+
+
+def test_format_competitions_page_layout():
+    comps = [_comp(name="A"), _comp(name="B")]
+    text = format_competitions_page(comps, "ru")
+    sep = CARD_SEPARATOR
+    assert not text.startswith(CARD_SEPARATOR)
+    assert text.rstrip("\n").endswith(_format_competition(comps[-1], "ru"))
+    header_block = f"<b>Ближайшие соревнования</b>\n📊 Найдено 2 соревнования"
+    assert text.startswith(header_block)
+    assert text[len(header_block):].startswith(f"\n\n{sep}\n\n")
+
+
+def test_format_competitions_page_grouping():
+    comps = [_comp(name="A"), _comp(name="B")]
+    text = format_competitions_page(comps, "ru")
+    sep = CARD_SEPARATOR
+    block = f"\n\n{sep}\n\n"
+    assert text.count(block) == 2
+    assert not text.endswith(sep)
+    assert text.count(sep) == 2
 
 
 def test_format_competitions_single_competition_count_ru():

@@ -92,7 +92,7 @@ def format_settings_rich(
     ]
 
     blocks = [f"<b>{get_text(language, 'settings.title')}</b>", *sections]
-    return f"\n{CARD_SEPARATOR}\n".join(blocks)
+    return f"\n\n{CARD_SEPARATOR}\n\n".join(blocks)
 
 
 async def settings_screen_text(telegram_id: int, language: str = DEFAULT_LANGUAGE) -> str:
