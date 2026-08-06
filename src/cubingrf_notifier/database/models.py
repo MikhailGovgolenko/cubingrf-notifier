@@ -30,6 +30,11 @@ class User(Base):
     # Interface language (two-letter code, see i18n.DEFAULT_LANGUAGE).
     language = Column(String(10), nullable=False, default="ru", server_default="ru")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    # When the user last blocked the bot (or the bot could not reach them).
+    # NULL means the user is currently active/reachable.
+    blocked_at = Column(DateTime(timezone=True), nullable=True)
+    # The last time the user interacted with the bot; NULL if never seen.
+    last_seen_at = Column(DateTime(timezone=True), nullable=True)
 
     notifications = relationship("Notification", back_populates="user", cascade="all, delete-orphan")
     events = relationship("UserEvent", back_populates="user", cascade="all, delete-orphan")

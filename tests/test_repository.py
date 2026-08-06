@@ -118,3 +118,123 @@ async def test_sync_username_preserves_language(session):
     user = await repo.get_user_by_telegram_id(111)
     assert user.username == "new_name"
     assert user.language == "ru"
+
+
+# --- blocked_at (active / blocked tracking) ---
+
+async def test_new_user_is_active(session):
+    repo = UserRepository(session)
+    user = await repo.register_user(111, username="alex", language_code="en")
+    await session.flush()
+    assert user.blocked_at is None
+
+
+async def test_set_blocked_marks_user(session):
+    repo = UserRepository(session)
+    await repo.register_user(111, username="alex", language_code="en")
+    await session.flush()
+    assert await repo.set_blocked(111) is True
+    user = await repo.get_user_by_telegram_id(111)
+    assert user.blocked_at is not None
+
+
+async def test_set_blocked_keeps_user_in_db(session):
+    repo = UserRepository(session)
+    await repo.register_user(111, username="alex", language_code="en")
+    await session.flush()
+    await repo.set_blocked(111)
+    await session.flush()
+    assert await repo.get_user_by_telegram_id(111) is not None
+    assert len(await repo.list_enabled_users()) == 0
+
+
+async def test_set_blocked_noop_when_already_blocked(session):
+    repo = UserRepository(session)
+    await repo.register_user(111, username="alex", language_code="en")
+    await repo.set_blocked(111)
+    await session.flush()
+    assert await repo.set_blocked(111) is False
+
+
+async def test_mark_active_clears_blocked_at(session):
+    repo = UserRepository(session)
+    await repo.register_user(111, username="alex", language_code="en")
+    await repo.set_blocked(111)
+    await session.flush()
+    assert await repo.mark_active(111) is True
+    user = await repo.get_user_by_telegram_id(111)
+    assert user.blocked_at is None
+    assert [u.telegram_id for u in await repo.list_enabled_users()] == [111]
+
+
+async def test_mark_active_noop_when_already_active(session):
+    repo = UserRepository(session)
+    await repo.register_user(111, username="alex", language_code="en")
+    await session.flush()
+    assert await repo.mark_active(111) is False
+
+
+async def test_list_enabled_users_excludes_blocked(session):
+    repo = UserRepository(session)
+    await repo.register_user(111, username="alex", language_code="en")
+    await repo.register_user(222, username="bob", language_code="en")
+    await session.flush()
+    await repo.set_blocked(111)
+    await session.flush()
+    enabled = [u.telegram_id for u in await repo.list_enabled_users()]
+    assert enabled == [222]
+
+
+# --- last_seen_at (activity tracking) ---
+
+async def test_new_user_gets_last_seen_at(session):
+    repo = UserRepository(session)
+    await repo.register_user(111, username="alex", language_code="en")
+    await session.flush()
+    assert (await repo.get_user_by_telegram_id(111)).last_seen_at is not None
+
+
+async def test_mark_seen_updates_last_seen_at(session):
+    repo = UserRepository(session)
+    await repo.register_user(111, username="alex", language_code="en")
+    await session.flush()
+    first = (await repo.get_user_by_telegram_id(111)).last_seen_at
+    assert await repo.mark_seen(111, "alex") is True
+    assert (await repo.get_user_by_telegram_id(111)).last_seen_at is not None
+
+
+async def test_mark_seen_works_without_username(session):
+    repo = UserRepository(session)
+    await repo.register_user(111, username=None, language_code="en")
+    await session.flush()
+    assert await repo.mark_seen(111) is True
+    user = await repo.get_user_by_telegram_id(111)
+    assert user.last_seen_at is not None
+    assert user.username is None
+
+
+async def test_mark_seen_ignores_unknown_user(session):
+    repo = UserRepository(session)
+    assert await repo.mark_seen(999, "alex") is False
+
+
+async def test_mark_seen_clears_blocked_at(session):
+    repo = UserRepository(session)
+    await repo.register_user(111, username="alex", language_code="en")
+    await repo.set_blocked(111)
+    await session.flush()
+    assert await repo.mark_seen(111, "alex") is True
+    user = await repo.get_user_by_telegram_id(111)
+    assert user.blocked_at is None
+    assert user.last_seen_at is not None
+
+
+async def test_mark_seen_updates_username_preserves_language(session):
+    repo = UserRepository(session)
+    await repo.register_user(111, username="alex", language_code="en")
+    await repo.set_user_language(111, "ru")
+    await session.flush()
+    assert await repo.mark_seen(111, "new_name") is True
+    user = await repo.get_user_by_telegram_id(111)
+    assert user.username == "new_name"
+    assert user.language == "ru"

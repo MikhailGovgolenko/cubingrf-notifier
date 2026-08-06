@@ -94,3 +94,47 @@ async def test_middleware_preserves_language(session_maker):
     user = await _get_user(session_maker, 111)
     assert user.username == "new_name"
     assert user.language == "ru"
+
+
+# --- last_seen_at (activity tracking) ---
+
+async def test_middleware_updates_last_seen_at(session_maker):
+    async with session_maker() as sess:
+        await UserRepository(sess).register_user(111, "alex", "en")
+        await sess.commit()
+
+    mw = SyncUsernameMiddleware()
+    with patch("cubingrf_notifier.bot.middleware.AsyncSessionLocal", session_maker):
+        await _run(mw, _from_user(111, "alex"))
+
+    user = await _get_user(session_maker, 111)
+    assert user.last_seen_at is not None
+
+
+async def test_middleware_updates_last_seen_at_without_username(session_maker):
+    async with session_maker() as sess:
+        await UserRepository(sess).register_user(111, None, "en")
+        await sess.commit()
+
+    mw = SyncUsernameMiddleware()
+    with patch("cubingrf_notifier.bot.middleware.AsyncSessionLocal", session_maker):
+        await _run(mw, _from_user(111, None))
+
+    user = await _get_user(session_maker, 111)
+    assert user.last_seen_at is not None
+    assert user.username is None
+
+
+async def test_middleware_reactivates_blocked_user(session_maker):
+    async with session_maker() as sess:
+        await UserRepository(sess).register_user(111, "alex", "en")
+        await UserRepository(sess).set_blocked(111)
+        await sess.commit()
+
+    mw = SyncUsernameMiddleware()
+    with patch("cubingrf_notifier.bot.middleware.AsyncSessionLocal", session_maker):
+        await _run(mw, _from_user(111, "alex"))
+
+    user = await _get_user(session_maker, 111)
+    assert user.blocked_at is None
+    assert user.last_seen_at is not None

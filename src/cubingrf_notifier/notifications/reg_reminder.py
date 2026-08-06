@@ -19,6 +19,8 @@ from ..database.session import AsyncSessionLocal
 from .matcher import should_notify_user
 from .telegram import TelegramNotifier
 
+from aiogram.exceptions import TelegramForbiddenError
+
 logger = logging.getLogger(__name__)
 
 REMINDER_WINDOW = timedelta(minutes=30)
@@ -106,6 +108,12 @@ async def check_registration_reminders() -> None:
                             comp.id,
                             user.telegram_id,
                         )
+                    except TelegramForbiddenError:
+                        logger.warning(
+                            "User cannot be reached (blocked bot), marking as blocked telegram_id=%s",
+                            user.telegram_id,
+                        )
+                        await user_repo.set_blocked(user.telegram_id)
                     except Exception:
                         logger.exception(
                             "Failed to send registration reminder competition=%s telegram_id=%s",

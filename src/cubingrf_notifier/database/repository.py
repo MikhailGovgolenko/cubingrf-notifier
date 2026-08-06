@@ -1,5 +1,6 @@
 from typing import Optional, List
 import logging
+from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete, or_
 from sqlalchemy.exc import IntegrityError
@@ -43,6 +44,7 @@ class UserRepository:
                 telegram_id=telegram_id,
                 username=username,
                 language=get_user_language(language_code),
+                last_seen_at=func.now(),
             )
             self.session.add(user)
         elif username and user.username != username:
@@ -79,6 +81,55 @@ class UserRepository:
         await self.session.flush()
         return user
 
+    async def set_blocked(self, telegram_id: int) -> bool:
+        """Mark a user as blocked/offline (bot could not reach them).
+
+        True only when the state actually changed, so callers know whether to
+        commit. Never deletes the user.
+        """
+        user = await self.get_user_by_telegram_id(telegram_id)
+        if user is None or user.blocked_at is not None:
+            return False
+        user.blocked_at = datetime.now(timezone.utc)
+        await self.session.flush()
+        return True
+
+    async def mark_active(self, telegram_id: int) -> bool:
+        """Reset a user back to active on any successful interaction.
+
+        Clears ``blocked_at`` so the user is counted as active again. No-op
+        (False) when the user is unknown or already active.
+        """
+        user = await self.get_user_by_telegram_id(telegram_id)
+        if user is None or user.blocked_at is None:
+            return False
+        user.blocked_at = None
+        await self.session.flush()
+        return True
+
+    async def mark_seen(self, telegram_id: int, username: Optional[str] = None) -> bool:
+        """Record activity for a user on any successful interaction.
+
+        Updates ``last_seen_at`` to now, refreshes ``username`` when it changed
+        (persistence only — never the chosen language), and clears ``blocked_at``
+        so a previously blocked user is active again. Returns True when anything
+        changed so callers know whether to commit.
+        """
+        user = await self.get_user_by_telegram_id(telegram_id)
+        if user is None:
+            return False
+        changed = False
+        user.last_seen_at = func.now()
+        changed = True
+        if username and user.username != username:
+            user.username = username
+            changed = True
+        if user.blocked_at is not None:
+            user.blocked_at = None
+            changed = True
+        await self.session.flush()
+        return changed
+
     async def get_user_language(self, telegram_id: int) -> str:
         """The user's interface language code (default language if unregistered)."""
         user = await self.get_user_by_telegram_id(telegram_id)
@@ -94,8 +145,15 @@ class UserRepository:
         return user
 
     async def list_enabled_users(self) -> List[User]:
-        """Users currently subscribed to notifications."""
-        q = select(User).where(User.notifications_enabled.is_(True))
+        """Users currently subscribed and reachable by the bot.
+
+        Blocked users (``blocked_at`` set) are excluded so we do not keep
+        retrying delivery until they interact with the bot again.
+        """
+        q = select(User).where(
+            User.notifications_enabled.is_(True),
+            User.blocked_at.is_(None),
+        )
         res = await self.session.execute(q)
         return res.scalars().all()
 

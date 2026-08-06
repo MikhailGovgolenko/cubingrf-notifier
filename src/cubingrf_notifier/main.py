@@ -7,6 +7,8 @@ from .config import settings
 from .scrapers.cubingrf_html import CubingRFHtmlScraper
 from .competitions.service import CompetitionService
 
+from aiogram.exceptions import TelegramForbiddenError
+
 from .database.session import AsyncSessionLocal, engine
 from .database.repository import (
     UserRepository,
@@ -80,6 +82,12 @@ async def check_and_notify() -> None:
                                 comp.id,
                                 user.telegram_id,
                             )
+                        except TelegramForbiddenError:
+                            logger.warning(
+                                "User cannot be reached (blocked bot), marking as blocked telegram_id=%s",
+                                user.telegram_id,
+                            )
+                            await user_repo.set_blocked(user.telegram_id)
                         except Exception:
                             logger.exception(
                                 "Failed to notify user competition=%s telegram_id=%s",
