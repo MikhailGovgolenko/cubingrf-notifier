@@ -58,16 +58,16 @@ def format_settings_rich(
 
         <h1>⚙️ Settings</h1>
         <hr/>
-        <h2>🔔 Notifications</h2>
+        <h3>🔔 Notifications</h3>
         <p>• Announcements ✅<br/>• Registrations ✅</p>
         <hr/>
-        <h2>🌍 Regions</h2>
+        <h3>🌍 Regions</h3>
         <p>• Москва</p>
         <hr/>
-        <h2>🧩 Events</h2>
+        <h3>🧩 Events</h3>
         <p>All events</p>
         <hr/>
-        <h2>🌐 Language</h2>
+        <h3>🌐 Language</h3>
         <p>🇬🇧 English</p>
     """
     if announcements_enabled is None:
@@ -82,13 +82,13 @@ def format_settings_rich(
 
     sections = [
         (
-            f"<h2>{get_text(language, 'settings.notifications_section')}</h2>\n"
+            f"<h3>{get_text(language, 'settings.notifications_section')}</h3>\n"
             f"<p>{BULLET} {get_text(language, 'settings.announcements')} {_on_off(announcements_enabled, language)}<br/>"
             f"{BULLET} {get_text(language, 'settings.registrations')} {_on_off(registration_notifications_enabled, language)}</p>"
         ),
-        f"<h2>{get_text(language, 'settings.region')}</h2>\n<p>{_regions_block(list(region_keys), language)}</p>",
-        f"<h2>{get_text(language, 'settings.disciplines')}</h2>\n<p>{_events_block(list(event_codes), language)}</p>",
-        f"<h2>{get_text(language, 'settings.language')}</h2>\n<p>{_language_display_name(language)}</p>",
+        f"<h3>{get_text(language, 'settings.region')}</h3>\n<p>{_regions_block(list(region_keys), language)}</p>",
+        f"<h3>{get_text(language, 'settings.disciplines')}</h3>\n<p>{_events_block(list(event_codes), language)}</p>",
+        f"<h3>{get_text(language, 'settings.language')}</h3>\n<p>{_language_display_name(language)}</p>",
     ]
 
     blocks = [f"<h1>{get_text(language, 'settings.title')}</h1>", *sections]

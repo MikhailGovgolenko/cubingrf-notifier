@@ -30,5 +30,5 @@ def selection_screen_text(title: str, none_text: str, items: Iterable[str]) -> s
     """Picker screen: an ``<h1>`` page title, then bulleted items or a hint."""
     items = list(items)
     if not items:
-        return f"<h1>{title}</h1><br/><br/>{none_text}"
-    return f"<h1>{title}</h1><br/><br/>{bullet_lines(items)}"
+        return f"<h1>{title}</h1><br/>{none_text}"
+    return f"<h1>{title}</h1><br/>{bullet_lines(items)}"

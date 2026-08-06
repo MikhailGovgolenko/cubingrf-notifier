@@ -178,10 +178,11 @@ def format_competition_card(competition, language: str = "ru") -> str:
     """A competition card without any page header.
 
     Used on the competitions page (as a ``<p>`` block) and as the body of a
-    notification. Fields are grouped and each group is separated by a blank
-    line (``<br/><br/>``)::
+    notification.     The card opens with a single line break before the title and closes with a
+    blank line; groups of fields are separated by blank lines
+    (``<br/><br/>``)::
 
-        🏆 <b><a href="...">Name</a></b>
+        <br/>🏆 <b><a href="...">Name</a></b>
 
         📅 22 August 2026<br/>
         📍 Мисайлово
@@ -189,6 +190,7 @@ def format_competition_card(competition, language: str = "ru") -> str:
         🧩 4x4 • 5x5
 
         🟢 Registration is open
+        <br/><br/>
     """
     title = _title_line(competition)
     date = get_text(
@@ -219,7 +221,8 @@ def format_competition_card(competition, language: str = "ru") -> str:
     if reg_label is not None:
         groups.append([reg_label])
 
-    return "<br/><br/>".join("<br/>".join(group) for group in groups)
+    parts = groups + [[]]
+    return "<br/>" + "<br/><br/>".join("<br/>".join(group) for group in parts)
 
 
 def format_competition_count(total: int, language: str = "ru") -> str:

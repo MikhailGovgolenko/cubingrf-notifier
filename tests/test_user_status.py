@@ -29,23 +29,23 @@ def _user(announcements=True, registrations=True, events=(), regions=()):
 def test_settings_rich_ru_defaults():
     text = format_settings_rich(_user(), language="ru")
     assert "<h1>⚙️ Настройки</h1>" in text
-    assert "<h2>🔔 Уведомления</h2>" in text
+    assert "<h3>🔔 Уведомления</h3>" in text
     assert "• Анонсы ✅" in text
     assert "• Регистрации ✅" in text
-    assert "Регионы</h2>" in text and "Все" in text
-    assert "Дисциплины</h2>" in text and "Все" in text
-    assert "Язык</h2>" in text and "🇷🇺 Русский" in text
+    assert "Регионы</h3>" in text and "Все" in text
+    assert "Дисциплины</h3>" in text and "Все" in text
+    assert "Язык</h3>" in text and "🇷🇺 Русский" in text
 
 
 def test_settings_rich_english():
     text = format_settings_rich(_user(), language="en")
     assert "<h1>⚙️ Settings</h1>" in text
-    assert "<h2>🔔 Notifications</h2>" in text
+    assert "<h3>🔔 Notifications</h3>" in text
     assert "• Announcements ✅" in text
     assert "• Registrations ✅" in text
-    assert "Regions</h2>" in text and "All" in text
-    assert "Events</h2>" in text and "All" in text
-    assert "Language</h2>" in text and "🇬🇧 English" in text
+    assert "Regions</h3>" in text and "All" in text
+    assert "Events</h3>" in text and "All" in text
+    assert "Language</h3>" in text and "🇬🇧 English" in text
 
 
 def test_settings_notifications_off_shows_crosses():
@@ -69,7 +69,7 @@ def test_settings_regions_list():
 def test_settings_all_regions_shows_all():
     user = _user(regions=list(ALL_REGION_KEYS))
     text = format_settings_rich(user, language="ru")
-    assert "Регионы</h2>" in text and "Все" in text
+    assert "Регионы</h3>" in text and "Все" in text
     assert "• " not in text.split("Регионы")[1].split(CARD_SEPARATOR)[0]
 
 

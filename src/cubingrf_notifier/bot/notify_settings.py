@@ -7,7 +7,6 @@ from aiogram.types import CallbackQuery
 from ..database.session import AsyncSessionLocal
 from ..database.repository import UserRepository
 from ..i18n import get_text
-from ..notifications.competition_formatter import CARD_SEPARATOR
 from ..notifications.reminder_intervals import (
     is_valid_reminder_interval,
     reminder_interval_label,
@@ -46,13 +45,12 @@ def _notifications_text(user, language: str) -> str:
         f"{get_text(language, 'settings.reminder_interval')}: {reminder_interval_label(user.reg_reminder_interval, language)}",
     ]
     body = "<br/>".join(lines)
-    return f"<h1>{get_text(language, 'settings.notifications')}</h1>\n{CARD_SEPARATOR}\n<p>{body}</p>"
+    return f"<h1>{get_text(language, 'settings.notifications')}</h1>\n<p>{body}</p>"
 
 
 def _reminder_text(user, language: str) -> str:
     return (
         f"<h1>{get_text(language, 'settings.reminder_interval')}</h1>\n"
-        f"{CARD_SEPARATOR}\n"
         f"<p>{get_text(language, 'settings.reminder_current', value=reminder_interval_label(user.reg_reminder_interval, language))}</p>"
     )
 

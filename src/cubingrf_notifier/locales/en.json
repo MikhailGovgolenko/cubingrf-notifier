@@ -38,13 +38,13 @@
   "language.name_russian": "Russian",
   "language.name_english": "🇬🇧 English",
 
-  "disciplines.title": "🧩 Your events:",
+  "disciplines.title": "🧩 Your events",
   "disciplines.none": "Nothing selected — all competitions are shown.",
   "disciplines.all": "✔️ Select all",
   "disciplines.clear": "🗑️ Clear",
   "disciplines.back": "◀️ Back",
 
-  "regions.title": "🌍 Your regions:",
+  "regions.title": "🌍 Your regions",
   "regions.none": "Nothing selected — competitions from all regions are shown.",
   "regions.all": "✔️ Select all",
   "regions.clear": "🗑️ Clear",

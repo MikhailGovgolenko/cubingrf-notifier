@@ -66,7 +66,7 @@ async def cmd_start(message: Message):
         await sess.commit()
         language = await user_repo.get_user_language(user.id)
 
-    text = get_text(language, "menu.title")
+    text = f"<h1>{get_text(language, 'menu.title')}</h1>"
     await message.answer_rich(rich_html(text), reply_markup=main_menu_keyboard(language))
 
 

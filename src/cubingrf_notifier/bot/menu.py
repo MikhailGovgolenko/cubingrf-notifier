@@ -19,7 +19,7 @@ async def _user_language(telegram_id: int) -> str:
 @router.callback_query(MenuCB.filter(F.action == "back"))
 async def cb_back(callback: CallbackQuery):
     language = await _user_language(callback.from_user.id)
-    text = get_text(language, "menu.title")
+    text = f"<h1>{get_text(language, 'menu.title')}</h1>"
     await callback.message.edit_text(
         rich_message=rich_html(text), reply_markup=main_menu_keyboard(language)
     )
