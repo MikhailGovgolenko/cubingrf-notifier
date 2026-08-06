@@ -10,12 +10,13 @@ from ..i18n import DEFAULT_LANGUAGE, get_text
 from ..notifications.competition_formatter import CARD_SEPARATOR
 from .formatting import BULLET
 from .keyboards import settings_keyboard
+from .rich import rich_html
 
 logger = logging.getLogger(__name__)
 
 
 def _bullet_lines(items: list[str]) -> str:
-    return "\n".join(f"{BULLET} {item}" for item in items)
+    return "<br/>".join(f"{BULLET} {item}" for item in items)
 
 
 def _regions_block(region_keys: list[str], language: str) -> str:
@@ -55,20 +56,19 @@ def format_settings_rich(
 
     Layout::
 
-        <b>⚙️ Settings</b>
-        ──────────────────
-        <b>🔔 Notifications</b>
-        • Announcements ✅
-        • Registrations ✅
-        ──────────────────
-        <b>🌍 Regions</b>
-        • Москва
-        ──────────────────
-        <b>🧩 Events</b>
-        All events
-        ──────────────────
-        <b>🌐 Language</b>
-        🇬🇧 English
+        <h1>⚙️ Settings</h1>
+        <hr/>
+        <h2>🔔 Notifications</h2>
+        <p>• Announcements ✅<br/>• Registrations ✅</p>
+        <hr/>
+        <h2>🌍 Regions</h2>
+        <p>• Москва</p>
+        <hr/>
+        <h2>🧩 Events</h2>
+        <p>All events</p>
+        <hr/>
+        <h2>🌐 Language</h2>
+        <p>🇬🇧 English</p>
     """
     if announcements_enabled is None:
         announcements_enabled = getattr(user, "announcements_enabled", True)
@@ -82,17 +82,17 @@ def format_settings_rich(
 
     sections = [
         (
-            f"<b>{get_text(language, 'settings.notifications_section')}</b>\n"
-            f"{BULLET} {get_text(language, 'settings.announcements')} {_on_off(announcements_enabled, language)}\n"
-            f"{BULLET} {get_text(language, 'settings.registrations')} {_on_off(registration_notifications_enabled, language)}"
+            f"<h2>{get_text(language, 'settings.notifications_section')}</h2>\n"
+            f"<p>{BULLET} {get_text(language, 'settings.announcements')} {_on_off(announcements_enabled, language)}<br/>"
+            f"{BULLET} {get_text(language, 'settings.registrations')} {_on_off(registration_notifications_enabled, language)}</p>"
         ),
-        f"<b>{get_text(language, 'settings.region')}</b>\n{_regions_block(list(region_keys), language)}",
-        f"<b>{get_text(language, 'settings.disciplines')}</b>\n{_events_block(list(event_codes), language)}",
-        f"<b>{get_text(language, 'settings.language')}</b>\n{_language_display_name(language)}",
+        f"<h2>{get_text(language, 'settings.region')}</h2>\n<p>{_regions_block(list(region_keys), language)}</p>",
+        f"<h2>{get_text(language, 'settings.disciplines')}</h2>\n<p>{_events_block(list(event_codes), language)}</p>",
+        f"<h2>{get_text(language, 'settings.language')}</h2>\n<p>{_language_display_name(language)}</p>",
     ]
 
-    blocks = [f"<b>{get_text(language, 'settings.title')}</b>", *sections]
-    return f"\n\n{CARD_SEPARATOR}\n\n".join(blocks)
+    blocks = [f"<h1>{get_text(language, 'settings.title')}</h1>", *sections]
+    return f"\n{CARD_SEPARATOR}\n".join(blocks)
 
 
 async def settings_screen_text(telegram_id: int, language: str = DEFAULT_LANGUAGE) -> str:
@@ -101,7 +101,7 @@ async def settings_screen_text(telegram_id: int, language: str = DEFAULT_LANGUAG
         repo = UserRepository(sess)
         user = await repo.get_user_by_telegram_id(telegram_id)
         if user is None:
-            return f"<b>{get_text(language, 'settings.title')}</b>"
+            return f"<h1>{get_text(language, 'settings.title')}</h1>"
         codes = await repo.get_user_events(telegram_id)
         regions = await repo.get_user_regions(telegram_id)
     language = user.language or language
@@ -126,7 +126,7 @@ async def show_settings_screen(callback: CallbackQuery) -> None:
         language = user.language or DEFAULT_LANGUAGE
     text = await build_settings(user, codes, language, regions)
     await callback.message.edit_text(
-        text,
+        rich_message=rich_html(text),
         reply_markup=settings_keyboard(
             user.announcements_enabled,
             user.registration_notifications_enabled,
@@ -147,8 +147,8 @@ async def send_settings_screen(message: Message) -> None:
         regions = await repo.get_user_regions(message.from_user.id)
         language = user.language or DEFAULT_LANGUAGE
     text = await build_settings(user, codes, language, regions)
-    await message.answer(
-        text,
+    await message.answer_rich(
+        rich_html(text),
         reply_markup=settings_keyboard(
             user.announcements_enabled,
             user.registration_notifications_enabled,

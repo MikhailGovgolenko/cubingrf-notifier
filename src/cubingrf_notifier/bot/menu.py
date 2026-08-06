@@ -6,6 +6,7 @@ from ..database.repository import UserRepository
 from ..i18n import get_text
 from .keyboards import main_menu_keyboard, MenuCB
 from .user_status import show_settings_screen
+from .rich import rich_html
 
 router = Router()
 
@@ -19,7 +20,9 @@ async def _user_language(telegram_id: int) -> str:
 async def cb_back(callback: CallbackQuery):
     language = await _user_language(callback.from_user.id)
     text = get_text(language, "menu.title")
-    await callback.message.edit_text(text, reply_markup=main_menu_keyboard(language))
+    await callback.message.edit_text(
+        rich_message=rich_html(text), reply_markup=main_menu_keyboard(language)
+    )
     await callback.answer()
 
 

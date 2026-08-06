@@ -21,6 +21,7 @@ from ..notifications.competition_formatter import (
 from ..i18n import get_text
 from ..competitions.regions import region_key_from_location
 from .keyboards import competitions_keyboard, MenuCB, CompetitionCB
+from .rich import rich_html
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +153,9 @@ async def _render_callback(callback: CallbackQuery, page: int, telegram_id: int)
         comps, total_pages, language, total_count = await _load_page(page, telegram_id)
         logger.info("Found competitions count=%s", len(comps))
         text, kb = _render(comps, page, total_pages, language, total_count)
-        await callback.message.edit_text(text, reply_markup=kb)
+        await callback.message.edit_text(
+            rich_message=rich_html(text), reply_markup=kb
+        )
     except Exception:
         logger.exception(
             "Error while rendering competitions (telegram_id=%s)",
@@ -167,4 +170,4 @@ async def _render_callback(callback: CallbackQuery, page: int, telegram_id: int)
 async def cmd_competitions(message: Message):
     comps, total_pages, language, total_count = await _load_page(0, message.from_user.id)
     text, kb = _render(comps, 0, total_pages, language, total_count)
-    await message.answer(text, reply_markup=kb)
+    await message.answer_rich(rich_html(text), reply_markup=kb)

@@ -39,8 +39,8 @@ class _FakeMessage:
         self.text = None
         self.reply_markup = None
 
-    async def edit_text(self, text, reply_markup=None):
-        self.text = text
+    async def edit_text(self, text=None, rich_message=None, reply_markup=None):
+        self.text = rich_message.html if rich_message is not None else text
         self.reply_markup = reply_markup
 
 

@@ -28,24 +28,24 @@ def _user(announcements=True, registrations=True, events=(), regions=()):
 
 def test_settings_rich_ru_defaults():
     text = format_settings_rich(_user(), language="ru")
-    assert "<b>⚙️ Настройки</b>" in text
-    assert "<b>🔔 Уведомления</b>" in text
+    assert "<h1>⚙️ Настройки</h1>" in text
+    assert "<h2>🔔 Уведомления</h2>" in text
     assert "• Анонсы ✅" in text
     assert "• Регистрации ✅" in text
-    assert "Регионы</b>\nВсе" in text
-    assert "Дисциплины</b>\nВсе события" in text
-    assert "Язык</b>\n🇷🇺 Русский" in text
+    assert "Регионы</h2>" in text and "Все" in text
+    assert "Дисциплины</h2>" in text and "Все события" in text
+    assert "Язык</h2>" in text and "🇷🇺 Русский" in text
 
 
 def test_settings_rich_english():
     text = format_settings_rich(_user(), language="en")
-    assert "<b>⚙️ Settings</b>" in text
-    assert "<b>🔔 Notifications</b>" in text
+    assert "<h1>⚙️ Settings</h1>" in text
+    assert "<h2>🔔 Notifications</h2>" in text
     assert "• Announcements ✅" in text
     assert "• Registrations ✅" in text
-    assert "Regions</b>\nAll" in text
-    assert "Events</b>\nAll events" in text
-    assert "Language</b>\n🇬🇧 English" in text
+    assert "Regions</h2>" in text and "All" in text
+    assert "Events</h2>" in text and "All events" in text
+    assert "Language</h2>" in text and "🇬🇧 English" in text
 
 
 def test_settings_notifications_off_shows_crosses():
@@ -69,7 +69,7 @@ def test_settings_regions_list():
 def test_settings_all_regions_shows_all():
     user = _user(regions=list(ALL_REGION_KEYS))
     text = format_settings_rich(user, language="ru")
-    assert "Регионы</b>\nВсе" in text
+    assert "Регионы</h2>" in text and "Все" in text
     assert "• " not in text.split("Регионы")[1].split(CARD_SEPARATOR)[0]
 
 
@@ -84,9 +84,9 @@ def test_settings_uses_rich_markup():
     text = format_settings_rich(_user(), language="en")
     assert text.count(CARD_SEPARATOR) == 4
     assert "\n" in text
-    # The page title is a bold heading; the first separator comes after it.
-    assert text.startswith("<b>")
-    assert text.split("\n", 1)[0] == "<b>⚙️ Settings</b>"
+    # The page title is an <h1>; the first separator comes after it.
+    assert text.startswith("<h1>")
+    assert text.split("\n", 1)[0] == "<h1>⚙️ Settings</h1>"
 
 
 # ---------- settings keyboard ----------

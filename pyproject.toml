@@ -5,7 +5,7 @@ description = "Telegram notifier for CubingRF competitions"
 requires-python = ">=3.13"
 
 dependencies = [
-    "aiogram>=3.0",
+    "aiogram>=3.30",
     "httpx>=0.24",
     "selectolax>=0.4.11",
     "sqlalchemy[asyncio]>=2.0",

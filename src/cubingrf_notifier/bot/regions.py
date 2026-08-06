@@ -14,6 +14,7 @@ from .keyboards import (
     RegionCB,
 )
 from .user_status import show_settings_screen
+from .rich import rich_html
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,7 @@ async def show_regions_screen(callback: CallbackQuery) -> None:
     selected = await _load_selected(callback.from_user.id)
     language = await _user_language(callback.from_user.id)
     await callback.message.edit_text(
-        _regions_text(selected, language),
+        rich_message=rich_html(_regions_text(selected, language)),
         reply_markup=regions_keyboard(selected, language),
     )
     await callback.answer()

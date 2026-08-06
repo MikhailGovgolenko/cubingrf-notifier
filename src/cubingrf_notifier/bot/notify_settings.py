@@ -19,6 +19,7 @@ from .keyboards import (
     ReminderCB,
 )
 from .user_status import show_settings_screen
+from .rich import rich_html
 
 logger = logging.getLogger(__name__)
 
@@ -44,21 +45,22 @@ def _notifications_text(user, language: str) -> str:
         f"{get_text(language, 'settings.registrations')}: {on if user.registration_notifications_enabled else off}",
         f"{get_text(language, 'settings.reminder_interval')}: {reminder_interval_label(user.reg_reminder_interval, language)}",
     ]
-    body = "\n".join(lines)
-    return f"<b>{get_text(language, 'settings.notifications')}</b>\n\n{CARD_SEPARATOR}\n\n{body}"
+    body = "<br/>".join(lines)
+    return f"<h1>{get_text(language, 'settings.notifications')}</h1>\n{CARD_SEPARATOR}\n<p>{body}</p>"
 
 
 def _reminder_text(user, language: str) -> str:
     return (
-        f"<b>{get_text(language, 'settings.reminder_interval')}</b>\n\n"
-        f"{CARD_SEPARATOR}\n\n{get_text(language, 'settings.reminder_current', value=reminder_interval_label(user.reg_reminder_interval, language))}"
+        f"<h1>{get_text(language, 'settings.reminder_interval')}</h1>\n"
+        f"{CARD_SEPARATOR}\n"
+        f"<p>{get_text(language, 'settings.reminder_current', value=reminder_interval_label(user.reg_reminder_interval, language))}</p>"
     )
 
 
 async def show_notifications_screen(callback: CallbackQuery) -> None:
     user, language = await _load(callback.from_user.id)
     await callback.message.edit_text(
-        _notifications_text(user, language),
+        rich_message=rich_html(_notifications_text(user, language)),
         reply_markup=notifications_keyboard(
             user.announcements_enabled,
             user.registration_notifications_enabled,
@@ -71,7 +73,7 @@ async def show_notifications_screen(callback: CallbackQuery) -> None:
 async def show_reminder_screen(callback: CallbackQuery) -> None:
     user, language = await _load(callback.from_user.id)
     await callback.message.edit_text(
-        _reminder_text(user, language),
+        rich_message=rich_html(_reminder_text(user, language)),
         reply_markup=reminder_intervals_keyboard(user.reg_reminder_interval, language),
     )
     await callback.answer()
@@ -80,7 +82,7 @@ async def show_reminder_screen(callback: CallbackQuery) -> None:
 async def _reopen(callback: CallbackQuery) -> None:
     user, language = await _load(callback.from_user.id)
     await callback.message.edit_text(
-        _notifications_text(user, language),
+        rich_message=rich_html(_notifications_text(user, language)),
         reply_markup=notifications_keyboard(
             user.announcements_enabled,
             user.registration_notifications_enabled,

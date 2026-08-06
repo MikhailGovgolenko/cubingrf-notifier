@@ -17,6 +17,7 @@ from .language import router as language_router
 from .notify_settings import router as notify_settings_router
 from .keyboards import main_menu_keyboard
 from .middleware import SyncUsernameMiddleware
+from .rich import rich_html
 
 import logging
 
@@ -66,16 +67,18 @@ async def cmd_start(message: Message):
         language = await user_repo.get_user_language(user.id)
 
     text = get_text(language, "menu.title")
-    await message.answer(text, reply_markup=main_menu_keyboard(language))
+    await message.answer_rich(rich_html(text), reply_markup=main_menu_keyboard(language))
 
 
 @dp.message(Command("help"))
 async def cmd_help(message: Message):
-    await message.answer(
-        "📖 Помощь\n\n"
-        "Управляйте ботом через кнопки главного меню.\n\n"
-        "/start — открыть главное меню\n"
-        "/competitions — ближайшие соревнования\n"
-        "/settings — настройки\n"
-        "/help — список команд"
+    await message.answer_rich(
+        rich_html(
+            "📖 Помощь<br/><br/>"
+            "Управляйте ботом через кнопки главного меню.<br/><br/>"
+            "/start — открыть главное меню<br/>"
+            "/competitions — ближайшие соревнования<br/>"
+            "/settings — настройки<br/>"
+            "/help — список команд"
+        )
     )

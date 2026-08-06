@@ -8,6 +8,7 @@ from ..database.repository import UserRepository
 from ..i18n import available_languages, get_text
 from .keyboards import language_keyboard, SettingsCB, LanguageCB
 from .user_status import show_settings_screen
+from .rich import rich_html
 
 logger = logging.getLogger(__name__)
 
@@ -27,10 +28,12 @@ def _language_name(code: str, language: str) -> str:
 async def show_language_screen(callback: CallbackQuery) -> None:
     current = await _user_language(callback.from_user.id)
     text = (
-        f"{get_text(current, 'language.title')}\n\n"
+        f"{get_text(current, 'language.title')}<br/><br/>"
         f"{get_text(current, 'language.current', name=_language_name(current, current))}"
     )
-    await callback.message.edit_text(text, reply_markup=language_keyboard(current))
+    await callback.message.edit_text(
+        rich_message=rich_html(text), reply_markup=language_keyboard(current)
+    )
     await callback.answer()
 
 

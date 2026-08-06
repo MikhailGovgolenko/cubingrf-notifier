@@ -1,4 +1,8 @@
-"""Shared text helpers for bot screens (status, pickers, competition cards)."""
+"""Shared text helpers for bot screens (status, pickers, competition cards).
+
+All pickers render as Telegram Rich Messages, where a literal ``\\n`` collapses
+and line breaks are produced with ``<br/>``.
+"""
 
 from typing import Iterable
 
@@ -6,8 +10,8 @@ BULLET = "•"
 
 
 def bullet_lines(items: Iterable[str]) -> str:
-    """Render items one per line, each prefixed with a bullet."""
-    return "\n".join(f"{BULLET} {item}" for item in items)
+    """Render items one per pushed line, each prefixed with a bullet."""
+    return "<br/>".join(f"{BULLET} {item}" for item in items)
 
 
 def status_section(label: str, items: Iterable[str], all_text: str) -> str:
@@ -19,12 +23,12 @@ def status_section(label: str, items: Iterable[str], all_text: str) -> str:
     items = list(items)
     if not items:
         return f"{label} {all_text}"
-    return f"{label}\n{bullet_lines(items)}"
+    return f"{label}<br/>{bullet_lines(items)}"
 
 
 def selection_screen_text(title: str, none_text: str, items: Iterable[str]) -> str:
     """Picker screen header: the title, then bulleted items or a hint."""
     items = list(items)
     if not items:
-        return f"{title}\n\n{none_text}"
-    return f"{title}\n\n{bullet_lines(items)}"
+        return f"{title}<br/><br/>{none_text}"
+    return f"{title}<br/><br/>{bullet_lines(items)}"

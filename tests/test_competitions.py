@@ -133,6 +133,7 @@ def test_format_competitions_full_width_separator():
     text = _format_competitions(comps, "ru")
     assert CARD_SEPARATOR in text
     assert "---" not in text
+    assert "─" not in text
 
 
 def test_format_competitions_shows_matching_count():
@@ -144,19 +145,19 @@ def test_format_competitions_shows_matching_count():
 def test_format_competitions_page_layout():
     comps = [_comp(name="A"), _comp(name="B")]
     text = format_competitions_page(comps, "ru")
-    sep = CARD_SEPARATOR
+    assert text.startswith("<h1>Ближайшие соревнования</h1>")
+    assert "\n<p>📊 Найдено 2 соревнования</p>\n" in text
     assert not text.startswith(CARD_SEPARATOR)
-    assert text.rstrip("\n").endswith(_format_competition(comps[-1], "ru"))
-    header_block = f"<b>Ближайшие соревнования</b>\n📊 Найдено 2 соревнования"
-    assert text.startswith(header_block)
-    assert text[len(header_block):].startswith(f"\n\n{sep}\n\n")
+    assert text.rstrip("\n").endswith("</p>")
+    assert "<h1>" in text and "</h1>" in text
+    assert "<br/>" in text
 
 
 def test_format_competitions_page_grouping():
     comps = [_comp(name="A"), _comp(name="B")]
     text = format_competitions_page(comps, "ru")
     sep = CARD_SEPARATOR
-    block = f"\n\n{sep}\n\n"
+    block = f"\n{sep}\n"
     assert text.count(block) == 2
     assert not text.endswith(sep)
     assert text.count(sep) == 2

@@ -1,12 +1,13 @@
-"""Single source of truth for competition text formatting (Telegram HTML).
+"""Single source of truth for competition text formatting (Rich Message HTML).
 
 Used both by the bot's "competitions" page and by push notifications, so the
 output is always identical and localized the same way. Everything is rendered
-as Telegram Rich Messages (HTML): headings use ``<b>``, links use ``<a href>``,
-sections are split by a full-width separator line and lines by ``\\n``.
+as a Telegram Rich Message (``sendRichMessage``): headings use ``<h1>``, links
+use ``<a href>``, cards are ``<p>`` blocks, line breaks use ``<br/>`` and
+sections are split by ``<hr/>``.
 
-Note: Telegram's HTML parser rejects ``<h1>``/``<hr>``/``<br>``, so headings
-and horizontal rules are emulated with supported markup.
+Note: a literal ``\\n`` collapses in Rich Message HTML, so every line break
+between fields is rendered with ``<br/>``.
 """
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
@@ -15,8 +16,8 @@ from html import escape
 from ..competitions.disciplines import discipline_short_label, sort_discipline_codes
 from ..i18n import get_text
 
-# Separator line between blocks (emulates <hr>, unsupported by Telegram HTML).
-CARD_SEPARATOR = "─" * 18
+# Separator block between cards (rendered as a rich-message <hr/>).
+CARD_SEPARATOR = "<hr/>"
 
 _RU_MONTHS = {
     1: "января", 2: "февраля", 3: "марта", 4: "апреля", 5: "мая", 6: "июня",
@@ -41,8 +42,8 @@ def _escape(text: str) -> str:
 
 
 def _heading(text: str) -> str:
-    """A page/notification heading (emulates <h1> with a supported tag)."""
-    return f"<b>{_escape(text)}</b>"
+    """A page/notification heading (Rich Message ``<h1>``)."""
+    return f"<h1>{_escape(text)}</h1>"
 
 
 def _ru_plural(count: int, forms: tuple[str, str, str]) -> str:
@@ -176,14 +177,13 @@ def _registration_label(competition, language: str) -> str | None:
 def format_competition_card(competition, language: str = "ru") -> str:
     """A competition card without any page header.
 
-    Used on the competitions page (joined with CARD_SEPARATOR) and as the body
-    of a notification. Each field sits on its own line with no blank lines
-    between them, matching the Rich Message style:
+    Used on the competitions page (as a ``<p>`` block) and as the body of a
+    notification. Each field sits on its own line, produced by ``<br/>``:
 
-        🏆 <b><a href="...">Name</a></b>
-        📅 22 August 2026
-        📍 Мисайлово
-        🧩 4x4 • 5x5
+        🏆 <b><a href="...">Name</a></b><br/>
+        📅 22 August 2026<br/>
+        📍 Мисайлово<br/>
+        🧩 4x4 • 5x5<br/>
         🟢 Registration is open
     """
     lines = [
@@ -212,7 +212,7 @@ def format_competition_card(competition, language: str = "ru") -> str:
     if reg_label is not None:
         lines.append(reg_label)
 
-    return "\n".join(lines)
+    return "<br/>".join(lines)
 
 
 def format_competition_count(total: int, language: str = "ru") -> str:
@@ -233,16 +233,12 @@ def format_competitions_page(
 
     Layout (no separator right under the heading)::
 
-        <b>Upcoming competitions</b>
-        📊 Found 4 competitions
-
-        ──────────────────
-
-        <card 1>
-
-        ──────────────────
-
-        <card 2>
+        <h1>Upcoming competitions</h1>
+        <p>📊 Found 4 competitions</p>
+        <hr/>
+        <p>🏆 <b><a href="...">Name</a></b><br/>📅 …<br/>📍 …</p>
+        <hr/>
+        <p>🏆 <b><a href="...">Name</a></b><br/>📅 …<br/>📍 …</p>
         ...
     """
     header = _heading(get_text(language, "competitions.title"))
@@ -250,21 +246,19 @@ def format_competitions_page(
         return f"{header}\n{get_text(language, 'competitions.none')}"
 
     count_line = format_competition_count(total_count or len(competitions), language)
-    cards = f"\n\n{CARD_SEPARATOR}\n\n".join(
-        format_competition_card(c, language).rstrip("\n") for c in competitions
+    cards = f"\n{CARD_SEPARATOR}\n".join(
+        f"<p>{format_competition_card(c, language)}</p>" for c in competitions
     )
-    return (
-        f"{header}\n{count_line}\n\n{CARD_SEPARATOR}\n\n{cards}"
-    )
+    return f"{header}\n<p>{count_line}</p>\n{CARD_SEPARATOR}\n{cards}"
 
 
 def format_competition_notification(competition, language: str = "ru") -> str:
     """Full push-notification text: localized header + the standard card."""
     header = _heading(get_text(language, "notifications.title"))
-    return f"{header}\n\n{format_competition_card(competition, language)}"
+    return f"{header}\n<p>{format_competition_card(competition, language)}</p>"
 
 
 def format_registration_reminder(competition, language: str = "ru") -> str:
     """Text for the "registration opens soon" reminder."""
     header = _heading(get_text(language, "notifications.reg_soon"))
-    return f"{header}\n\n{format_competition_card(competition, language)}"
+    return f"{header}\n<p>{format_competition_card(competition, language)}</p>"

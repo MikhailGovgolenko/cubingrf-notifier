@@ -62,12 +62,14 @@ def test_notification_contains_card():
     comp = _comp()
     card = format_competition_card(comp, "ru")
     notif = format_competition_notification(comp, "ru")
-    assert notif == f"<b>🆕 Новое соревнование!</b>\n\n{card}"
+    assert notif == f"<h1>🆕 Новое соревнование!</h1>\n<p>{card}</p>"
 
 
 def test_notification_matches_competition_page_card():
     comp = _comp()
-    assert format_competition_notification(comp, "ru").endswith(_format_competition(comp, "ru"))
+    assert format_competition_notification(comp, "ru").endswith(
+        f"<p>{_format_competition(comp, 'ru')}</p>"
+    )
 
 
 def test_notification_date_range():
