@@ -178,41 +178,48 @@ def format_competition_card(competition, language: str = "ru") -> str:
     """A competition card without any page header.
 
     Used on the competitions page (as a ``<p>`` block) and as the body of a
-    notification. Each field sits on its own line, produced by ``<br/>``:
+    notification. Fields are grouped and each group is separated by a blank
+    line (``<br/><br/>``)::
 
-        🏆 <b><a href="...">Name</a></b><br/>
+        🏆 <b><a href="...">Name</a></b>
+
         📅 22 August 2026<br/>
-        📍 Мисайлово<br/>
-        🧩 4x4 • 5x5<br/>
+        📍 Мисайлово
+
+        🧩 4x4 • 5x5
+
         🟢 Registration is open
     """
-    lines = [
-        _title_line(competition),
-        get_text(
+    title = _title_line(competition)
+    date = get_text(
+        language,
+        "competitions.date",
+        date=format_date_range(
+            competition.date,
+            getattr(competition, "end_date", None),
             language,
-            "competitions.date",
-            date=format_date_range(
-                competition.date,
-                getattr(competition, "end_date", None),
-                language,
-            ),
         ),
-        get_text(
-            language,
-            "competitions.location",
-            location=short_location(competition.location),
-        ),
+    )
+    location = get_text(
+        language,
+        "competitions.location",
+        location=short_location(competition.location),
+    )
+
+    groups = [
+        [title],
+        [date, location],
     ]
 
     disc_line = disciplines_line(competition.disciplines or [], language)
     if disc_line:
-        lines.append(disc_line)
+        groups.append([disc_line])
 
     reg_label = _registration_label(competition, language)
     if reg_label is not None:
-        lines.append(reg_label)
+        groups.append([reg_label])
 
-    return "<br/>".join(lines)
+    return "<br/><br/>".join("<br/>".join(group) for group in groups)
 
 
 def format_competition_count(total: int, language: str = "ru") -> str:

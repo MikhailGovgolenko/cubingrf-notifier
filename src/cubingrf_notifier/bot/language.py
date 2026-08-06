@@ -28,7 +28,7 @@ def _language_name(code: str, language: str) -> str:
 async def show_language_screen(callback: CallbackQuery) -> None:
     current = await _user_language(callback.from_user.id)
     text = (
-        f"{get_text(current, 'language.title')}<br/><br/>"
+        f"<h1>{get_text(current, 'language.title')}</h1><br/><br/>"
         f"{get_text(current, 'language.current', name=_language_name(current, current))}"
     )
     await callback.message.edit_text(

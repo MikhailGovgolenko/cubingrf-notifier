@@ -71,7 +71,7 @@ async def test_discipline_toggle_stays_on_picker(session_maker):
     cb = _FakeCallback(user_id)
     with patch("cubingrf_notifier.bot.events.AsyncSessionLocal", session_maker):
         await cb_toggle(cb, EventCB(action="toggle", code="333"))
-    assert cb.message.text.startswith(get_text("ru", "disciplines.title"))
+    assert cb.message.text.startswith("<h1>" + get_text("ru", "disciplines.title") + "</h1>")
     assert get_text("ru", "settings.title") not in cb.message.text
     rows = cb.message.reply_markup.inline_keyboard
     assert rows[0][0].text == "✅ 3x3x3"
@@ -96,7 +96,7 @@ async def test_discipline_select_all_stays_on_picker(session_maker):
     cb = _FakeCallback(user_id)
     with patch("cubingrf_notifier.bot.events.AsyncSessionLocal", session_maker):
         await cb_select_all(cb)
-    assert cb.message.text.startswith(get_text("ru", "disciplines.title"))
+    assert cb.message.text.startswith("<h1>" + get_text("ru", "disciplines.title") + "</h1>")
     rows = cb.message.reply_markup.inline_keyboard
     assert all(t.startswith("✅ ") for t in _buttons(rows[: len(DISCIPLINES)]))
 
@@ -108,7 +108,7 @@ async def test_discipline_clear_stays_on_picker(session_maker):
     with patch("cubingrf_notifier.bot.events.AsyncSessionLocal", session_maker):
         await cb_toggle(cb, EventCB(action="toggle", code="333"))
         await cb_clear(cb)
-    assert cb.message.text.startswith(get_text("ru", "disciplines.title"))
+    assert cb.message.text.startswith("<h1>" + get_text("ru", "disciplines.title") + "</h1>")
     assert get_text("ru", "disciplines.none") in cb.message.text
     rows = cb.message.reply_markup.inline_keyboard
     assert all(t.startswith("⬜ ") for t in _buttons(rows[: len(DISCIPLINES)]))
@@ -131,7 +131,7 @@ async def test_region_toggle_stays_on_picker(session_maker):
     cb = _FakeCallback(user_id)
     with patch("cubingrf_notifier.bot.regions.AsyncSessionLocal", session_maker):
         await cb_region_toggle(cb, RegionCB(action="toggle", key="Москва"))
-    assert cb.message.text.startswith(get_text("ru", "regions.title"))
+    assert cb.message.text.startswith("<h1>" + get_text("ru", "regions.title") + "</h1>")
     assert get_text("ru", "settings.title") not in cb.message.text
     rows = cb.message.reply_markup.inline_keyboard
     assert rows[0][0].text == "✅ Москва"
@@ -144,7 +144,7 @@ async def test_region_select_all_stays_on_picker(session_maker):
     cb = _FakeCallback(user_id)
     with patch("cubingrf_notifier.bot.regions.AsyncSessionLocal", session_maker):
         await cb_region_select_all(cb)
-    assert cb.message.text.startswith(get_text("ru", "regions.title"))
+    assert cb.message.text.startswith("<h1>" + get_text("ru", "regions.title") + "</h1>")
     rows = cb.message.reply_markup.inline_keyboard
     assert all(t.startswith("✅ ") for t in _buttons(rows[: len(ALL_REGION_KEYS)]))
 
@@ -156,7 +156,7 @@ async def test_region_clear_stays_on_picker(session_maker):
     with patch("cubingrf_notifier.bot.regions.AsyncSessionLocal", session_maker):
         await cb_region_toggle(cb, RegionCB(action="toggle", key="Москва"))
         await cb_region_clear(cb)
-    assert cb.message.text.startswith(get_text("ru", "regions.title"))
+    assert cb.message.text.startswith("<h1>" + get_text("ru", "regions.title") + "</h1>")
     assert get_text("ru", "regions.none") in cb.message.text
     rows = cb.message.reply_markup.inline_keyboard
     assert all(t.startswith("⬜ ") for t in _buttons(rows[: len(ALL_REGION_KEYS)]))

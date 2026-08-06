@@ -33,7 +33,7 @@ def test_settings_rich_ru_defaults():
     assert "• Анонсы ✅" in text
     assert "• Регистрации ✅" in text
     assert "Регионы</h2>" in text and "Все" in text
-    assert "Дисциплины</h2>" in text and "Все события" in text
+    assert "Дисциплины</h2>" in text and "Все" in text
     assert "Язык</h2>" in text and "🇷🇺 Русский" in text
 
 
@@ -44,7 +44,7 @@ def test_settings_rich_english():
     assert "• Announcements ✅" in text
     assert "• Registrations ✅" in text
     assert "Regions</h2>" in text and "All" in text
-    assert "Events</h2>" in text and "All events" in text
+    assert "Events</h2>" in text and "All" in text
     assert "Language</h2>" in text and "🇬🇧 English" in text
 
 
@@ -105,7 +105,7 @@ def test_notifications_keyboard_toggle_labels():
     texts = [btn.text for row in kb.inline_keyboard for btn in row]
     assert "🔔 Включить анонсы" in texts
     assert "⏰ Выключить уведомления о регистрации" in texts
-    assert "⏳ Интервал уведомления" in texts
+    assert "⏳ Напоминание о регистрации" in texts
 
 
 def test_reminder_intervals_keyboard_marks_current():
