@@ -139,14 +139,14 @@ def test_format_competitions_full_width_separator():
 def test_format_competitions_shows_matching_count():
     comps = [_comp(name="A"), _comp(name="B")]
     text = _format_competitions(comps, "ru", total_count=12)
-    assert "📊 Найдено 12 соревнований" in text
+    assert "📊 Найдено 12 соревнований с открытой или предстоящей регистрацией" in text
 
 
 def test_format_competitions_page_layout():
     comps = [_comp(name="A"), _comp(name="B")]
     text = format_competitions_page(comps, "ru")
     assert text.startswith("<h1>Ближайшие соревнования</h1>")
-    assert "\n<p>📊 Найдено 2 соревнования</p>\n" in text
+    assert "\n<p>📊 Найдено 2 соревнования с открытой или предстоящей регистрацией</p>\n" in text
     assert not text.startswith(CARD_SEPARATOR)
     assert text.rstrip("\n").endswith("</p>")
     assert "<h1>" in text and "</h1>" in text
@@ -164,13 +164,16 @@ def test_format_competitions_page_grouping():
 
 
 def test_format_competitions_single_competition_count_ru():
-    assert format_competition_count(1, "ru") == "📊 Найдено 1 соревнование"
+    assert (
+        format_competition_count(1, "ru")
+        == "📊 Найдено 1 соревнование с открытой или предстоящей регистрацией"
+    )
 
 
 def test_format_competitions_count_en_singular_and_plural():
-    assert format_competition_count(1, "en") == "📊 Found 1 competition"
-    assert format_competition_count(2, "en") == "📊 Found 2 competitions"
-    assert format_competition_count(10, "en") == "📊 Found 10 competitions"
+    assert format_competition_count(1, "en") == "📊 Found 1 competition with open or upcoming registration"
+    assert format_competition_count(2, "en") == "📊 Found 2 competitions with open or upcoming registration"
+    assert format_competition_count(10, "en") == "📊 Found 10 competitions with open or upcoming registration"
 
 
 def test_competitions_keyboard_single_page_hides_indicator():

@@ -226,11 +226,15 @@ def format_competition_card(competition, language: str = "ru") -> str:
 
 
 def format_competition_count(total: int, language: str = "ru") -> str:
-    """"📊 Found 1 competition" / "📊 Найдено 2 соревнования" (localized)."""
+    """"📊 Found N competitions with open or upcoming registration" (localized)."""
     if language == "ru":
-        unit = _ru_plural(total, ("соревнование", "соревнования", "соревнований"))
-        return get_text(language, "competitions.count", count=total, unit=unit)
-    unit = "competition" if total == 1 else "competitions"
+        unit = _ru_plural(
+            total,
+            ("соревнование", "соревнования", "соревнований"),
+        ) + " с открытой или предстоящей регистрацией"
+    else:
+        base = "competition" if total == 1 else "competitions"
+        unit = f"{base} with open or upcoming registration"
     return get_text(language, "competitions.count", count=total, unit=unit)
 
 

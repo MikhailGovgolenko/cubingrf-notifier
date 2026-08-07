@@ -2,18 +2,16 @@ from typing import Optional, List
 import logging
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, delete, or_
+from sqlalchemy import select, func, delete
 from sqlalchemy.exc import IntegrityError
 
 from .models import Competition, User, Notification, UserEvent, UserRegion
+from ..competitions.availability import is_registration_available
 from ..competitions.models import CompetitionDTO
 from ..i18n import DEFAULT_LANGUAGE, get_user_language
 from ..notifications.reminder_intervals import DEFAULT_REMINDER_INTERVAL
 
 logger = logging.getLogger(__name__)
-
-# Registration statuses that make a competition available to users.
-OPEN_REG_STATUSES = ("open", "scheduled")
 
 
 class UserRepository:
@@ -279,25 +277,23 @@ class CompetitionRepository:
         return res.scalar_one() > 0
 
     async def list_upcoming_competitions(self) -> List[Competition]:
-        """All future competitions with registration open or upcoming.
+        """Competitions the user could still register for.
 
-        Only future dates (from today onwards) where registration is NOT
-        closed. Unknown status (NULL) is kept as a safe fallback so the list
-        does not empty out if the site markup changes.
+        The date-driven rule from ``is_registration_available`` is the single
+        source of truth: both actual dates (``date`` / ``end_date`` /
+        ``registration_start_at``) and ``reg_status`` are considered, and a
+        competition is shown only when registration is (or will be) open and
+        the event has not started yet.
         """
         q = (
             select(Competition)
-            .where(
-                Competition.date >= func.current_date(),
-                or_(
-                    Competition.reg_status.is_(None),
-                    Competition.reg_status.in_(OPEN_REG_STATUSES),
-                ),
-            )
+            .where(Competition.date.is_not(None))
             .order_by(Competition.date.asc())
         )
         res = await self.session.execute(q)
-        return list(res.scalars().all())
+        comps = list(res.scalars().all())
+        now = datetime.now(timezone.utc)
+        return [c for c in comps if is_registration_available(c, now)]
 
     async def list_competitions_with_registration_start(self) -> List[Competition]:
         """Competitions that have a known registration opening moment.

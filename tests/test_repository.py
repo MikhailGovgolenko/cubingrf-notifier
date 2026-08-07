@@ -1,9 +1,14 @@
 import pytest
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
 from cubingrf_notifier.database.models import Base
-from cubingrf_notifier.database.repository import UserRepository
+from cubingrf_notifier.database.repository import (
+    CompetitionRepository,
+    UserRepository,
+)
+from cubingrf_notifier.competitions.models import CompetitionDTO
 from cubingrf_notifier.i18n import DEFAULT_LANGUAGE
 
 
@@ -281,3 +286,98 @@ async def test_set_reg_reminder_interval(session):
 async def test_get_reg_reminder_interval_unregistered_returns_default(session):
     repo = UserRepository(session)
     assert await repo.get_reg_reminder_interval(999) == 30
+
+
+# --- list_upcoming_competitions (date-driven availability filter) ---
+
+def _future_days(n: int) -> datetime:
+    return datetime.now(timezone.utc) + timedelta(days=n)
+
+
+def _past_days(n: int) -> datetime:
+    return datetime.now(timezone.utc) - timedelta(days=n)
+
+
+async def _add_comp(session, ext_id, date, reg_status=None, end_date=None,
+                    registration_start_at=None):
+    dto = CompetitionDTO(
+        external_id=ext_id,
+        name=ext_id,
+        date=date,
+        end_date=end_date,
+        reg_status=reg_status,
+        registration_start_at=registration_start_at,
+    )
+    return await CompetitionRepository(session).add_competition(dto)
+
+
+async def test_list_upcoming_includes_open_and_scheduled_future(session):
+    await _add_comp(session, "Open", _future_days(7), reg_status="open")
+    await _add_comp(session, "Scheduled", _future_days(9), reg_status="scheduled")
+    await session.flush()
+    names = [c.name for c in await CompetitionRepository(session).list_upcoming_competitions()]
+    assert names == ["Open", "Scheduled"]
+
+
+async def test_list_upcoming_includes_unknown_status_with_future_registration(session):
+    await _add_comp(
+        session, "UnknownFutureReg", _future_days(6),
+        reg_status=None,
+        registration_start_at=datetime.now(timezone.utc) + timedelta(days=2),
+    )
+    await session.flush()
+    names = [c.name for c in await CompetitionRepository(session).list_upcoming_competitions()]
+    assert names == ["UnknownFutureReg"]
+
+
+async def test_list_upcoming_includes_unknown_status_with_opened_registration(session):
+    await _add_comp(
+        session, "UnknownOpenReg", _future_days(6),
+        reg_status=None,
+        registration_start_at=datetime.now(timezone.utc) - timedelta(days=2),
+    )
+    await session.flush()
+    names = [c.name for c in await CompetitionRepository(session).list_upcoming_competitions()]
+    assert names == ["UnknownOpenReg"]
+
+
+async def test_list_upcoming_excludes_started_competition(session):
+    await _add_comp(session, "Started", _past_days(1), reg_status="open")
+    await session.flush()
+    assert await CompetitionRepository(session).list_upcoming_competitions() == []
+
+
+async def test_list_upcoming_excludes_finished_competition(session):
+    await _add_comp(
+        session, "Finished", _future_days(1),
+        reg_status="open",
+        end_date=_past_days(1),
+    )
+    await session.flush()
+    assert await CompetitionRepository(session).list_upcoming_competitions() == []
+
+
+async def test_list_upcoming_excludes_closed_future(session):
+    await _add_comp(session, "Closed", _future_days(5), reg_status="closed")
+    await session.flush()
+    assert await CompetitionRepository(session).list_upcoming_competitions() == []
+
+
+async def test_list_upcoming_excludes_unknown_status_without_dates(session):
+    await _add_comp(session, "UnknownNoReg", _future_days(5), reg_status=None)
+    await session.flush()
+    assert await CompetitionRepository(session).list_upcoming_competitions() == []
+
+
+async def test_list_upcoming_excludes_missing_date(session):
+    await _add_comp(session, "NoDate", None, reg_status="open")
+    await session.flush()
+    assert await CompetitionRepository(session).list_upcoming_competitions() == []
+
+
+async def test_list_upcoming_orders_by_date(session):
+    await _add_comp(session, "Later", _future_days(10), reg_status="open")
+    await _add_comp(session, "Sooner", _future_days(5), reg_status="open")
+    await session.flush()
+    names = [c.name for c in await CompetitionRepository(session).list_upcoming_competitions()]
+    assert names == ["Sooner", "Later"]
