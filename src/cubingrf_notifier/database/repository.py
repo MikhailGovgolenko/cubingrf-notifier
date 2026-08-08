@@ -56,6 +56,11 @@ class UserRepository:
         res = await self.session.execute(q)
         return res.scalar_one_or_none()
 
+    async def get_user_by_id(self, user_id: int) -> Optional[User]:
+        q = select(User).where(User.id == user_id)
+        res = await self.session.execute(q)
+        return res.scalar_one_or_none()
+
     async def sync_username(self, telegram_id: int, username: str) -> bool:
         """Persist ``username`` for an existing user when it changed.
 
@@ -268,6 +273,11 @@ class CompetitionRepository:
     async def get_by_external_id(self, external_id: str) -> Optional[Competition]:
         """Find a competition by its site-specific id, or None."""
         q = select(Competition).where(Competition.external_id == external_id)
+        res = await self.session.execute(q)
+        return res.scalar_one_or_none()
+
+    async def get_by_id(self, competition_id: int) -> Optional[Competition]:
+        q = select(Competition).where(Competition.id == competition_id)
         res = await self.session.execute(q)
         return res.scalar_one_or_none()
 

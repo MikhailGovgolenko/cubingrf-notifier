@@ -19,7 +19,7 @@ from .scheduler.jobs import create_scheduler
 
 from .notifications.telegram import TelegramNotifier
 from .notifications.matcher import should_notify_user
-from .notifications.reg_reminder import check_registration_reminders
+from .notifications.reg_reminder import reconcile_registration_reminders
 
 from .bot.bot import dp, bot
 
@@ -103,8 +103,6 @@ async def check_and_notify() -> None:
             await sess.commit()
             logger.info("No new competitions")
 
-    await check_registration_reminders()
-
 
 async def main() -> None:
     if bot is None:
@@ -112,7 +110,11 @@ async def main() -> None:
             "Telegram bot token is not configured. Set TELEGRAM_TOKEN in .env"
         )
 
-    scheduler = create_scheduler(check_and_notify, settings.poll_interval)
+    scheduler = create_scheduler(
+        check_and_notify,
+        settings.poll_interval,
+        reminder_reconciler=reconcile_registration_reminders,
+    )
     scheduler.start()
 
     loop = asyncio.get_running_loop()

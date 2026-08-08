@@ -41,14 +41,14 @@ def test_reminder_window_is_configurable():
     from datetime import datetime, timezone
 
     now = datetime(2026, 8, 16, 7, 0, tzinfo=timezone.utc)
-    start_3h = now + timedelta(hours=3)
-    start_12h = now + timedelta(hours=12)
+    start_3h = now + timedelta(hours=3)  # 10:00
+    start_12h = now + timedelta(hours=12)  # 19:00
 
-    # Default 30-minute window: a 3-hour lead is outside it.
-    assert should_send_registration_reminder(start_3h, now) is False
-    assert should_send_registration_reminder(start_12h, now) is False
-    # A 3-hour window fires at 3h lead but not 12h.
-    assert should_send_registration_reminder(start_3h, now, timedelta(hours=3)) is True
-    assert should_send_registration_reminder(start_12h, now, timedelta(hours=3)) is False
-    # A 12-hour window fires at 12h lead.
-    assert should_send_registration_reminder(start_12h, now, timedelta(hours=12)) is True
+    # Default 30-minute lead: target is 09:30 for start_3h → not yet now.
+    assert should_send_registration_reminder(start_3h, now, 30) is False
+    assert should_send_registration_reminder(start_12h, now, 30) is False
+    # A 3-hour interval: target is 07:00 == now → due.
+    assert should_send_registration_reminder(start_3h, now, 180) is True
+    assert should_send_registration_reminder(start_12h, now, 180) is False
+    # A 12-hour interval: target is 07:00 == now → due.
+    assert should_send_registration_reminder(start_12h, now, 720) is True

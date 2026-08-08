@@ -12,7 +12,10 @@ from cubingrf_notifier.database.repository import (
     KIND_REG_SOON,
     KIND_NEW,
 )
-from cubingrf_notifier.notifications.reg_reminder import should_send_registration_reminder
+from cubingrf_notifier.notifications.reg_reminder import (
+    should_send_registration_reminder,
+    notification_time,
+)
 from cubingrf_notifier.notifications.competition_formatter import format_registration_reminder
 from cubingrf_notifier.notifications.matcher import should_notify_user
 
@@ -32,49 +35,82 @@ async def db_session():
     await engine.dispose()
 
 
-# ---------- scheduling decision ----------
+# ---------- exact scheduled time ----------
 
-def test_reminder_exactly_30_minutes_before():
-    now = _utc(2026, 8, 16, 7, 0)
-    start = now + timedelta(minutes=30)
-    assert should_send_registration_reminder(start, now) is True
-
-
-def test_reminder_within_window_does_not_repeat():
-    now = _utc(2026, 8, 16, 7, 0)
-    start = now + timedelta(minutes=29)
-    assert should_send_registration_reminder(start, now) is True
+def test_notification_time_exact_instants():
+    start = _utc(2026, 8, 16, 18, 0)
+    assert notification_time(start, 60) == _utc(2026, 8, 16, 17, 0)
+    assert notification_time(start, 30) == _utc(2026, 8, 16, 17, 30)
+    assert notification_time(start, 180) == _utc(2026, 8, 16, 15, 0)
 
 
-def test_reminder_outside_window():
-    now = _utc(2026, 8, 16, 7, 0)
-    assert should_send_registration_reminder(now + timedelta(minutes=31), now) is False
-    assert should_send_registration_reminder(now, now) is False
-    assert should_send_registration_reminder(now - timedelta(minutes=1), now) is False
+def test_notification_time_missing_start_is_none():
+    assert notification_time(None, 60) is None
+
+
+def test_notification_time_naive_treated_as_utc():
+    start = datetime(2026, 8, 16, 18, 0)
+    assert notification_time(start, 60) == _utc(2026, 8, 16, 17, 0)
+
+
+def test_notification_time_offset_timezone_instant():
+    start = datetime(2026, 8, 16, 21, 0, tzinfo=timezone(timedelta(hours=3)))
+    assert notification_time(start, 60) == _utc(2026, 8, 16, 17, 0)
+
+
+def test_notification_time_crossing_midnight():
+    start = _utc(2026, 8, 17, 0, 30)
+    assert notification_time(start, 60) == _utc(2026, 8, 16, 23, 30)
+    start2 = _utc(2026, 8, 17, 1, 0)
+    assert notification_time(start2, 30) == _utc(2026, 8, 17, 0, 30)
+
+
+def test_notification_time_crossing_day_boundary_with_days():
+    start = _utc(2026, 8, 18, 6, 0)
+    assert notification_time(start, 1440) == _utc(2026, 8, 17, 6, 0)
+
+
+# ---------- scheduling decision (exact instant, not a window) ----------
+
+def test_reminder_not_sent_before_target():
+    start = _utc(2026, 8, 16, 18, 0)
+    before = _utc(2026, 8, 16, 16, 59)
+    assert should_send_registration_reminder(start, before, 60) is False
+
+
+def test_reminder_sent_at_target_instant():
+    start = _utc(2026, 8, 16, 18, 0)
+    at_target = _utc(2026, 8, 16, 17, 0)
+    assert should_send_registration_reminder(start, at_target, 60) is True
+
+
+def test_reminder_before_target_other_interval():
+    start = _utc(2026, 8, 16, 18, 0)
+    assert should_send_registration_reminder(start, _utc(2026, 8, 16, 17, 29), 30) is False
+    assert should_send_registration_reminder(start, _utc(2026, 8, 16, 17, 30), 30) is True
+
+
+def test_reminder_not_sent_after_registration_started():
+    start = _utc(2026, 8, 16, 18, 0)
+    assert should_send_registration_reminder(start, _utc(2026, 8, 16, 18, 0), 60) is False
+    assert should_send_registration_reminder(start, _utc(2026, 8, 16, 18, 1), 60) is False
 
 
 def test_reminder_missing_time():
-    assert should_send_registration_reminder(None, _utc(2026, 8, 16, 7, 0)) is False
+    assert should_send_registration_reminder(None, _utc(2026, 8, 16, 7, 0), 60) is False
 
 
 def test_reminder_naive_dates_treated_as_utc():
-    now = _utc(2026, 8, 16, 7, 0)
-    start_naive = datetime(2026, 8, 16, 7, 30)
-    assert should_send_registration_reminder(start_naive, now) is True
-
-
-def test_reminder_not_sent_after_scheduler_downtime():
-    now = _utc(2026, 8, 16, 7, 0)
-    start = now - timedelta(minutes=25)
-    assert should_send_registration_reminder(start, now) is False
+    start = datetime(2026, 8, 16, 18, 0)
+    assert should_send_registration_reminder(start, _utc(2026, 8, 16, 17, 0), 60) is True
 
 
 def test_reminder_same_instant_any_timezone():
-    now = _utc(2026, 8, 16, 7, 5)
-    start_utc = _utc(2026, 8, 16, 7, 30)
-    start_msk = datetime(2026, 8, 16, 10, 30, tzinfo=timezone(timedelta(hours=3)))
-    assert should_send_registration_reminder(start_utc, now) is True
-    assert should_send_registration_reminder(start_msk, now) is True
+    start_utc = _utc(2026, 8, 16, 18, 0)
+    start_msk = datetime(2026, 8, 16, 21, 0, tzinfo=timezone(timedelta(hours=3)))
+    for start in (start_utc, start_msk):
+        assert should_send_registration_reminder(start, _utc(2026, 8, 16, 17, 0), 60) is True
+        assert should_send_registration_reminder(start, _utc(2026, 8, 16, 16, 59), 60) is False
 
 
 def test_start_at_differ_compares_utc_instants():
@@ -210,12 +246,14 @@ async def test_reminders_independent_between_competitions(db_session):
 
 
 async def test_registration_start_roundtrip_preserves_instant(db_session):
+    # SQLite stores naive datetimes; after a round-trip the value is naive but
+    # the reminder logic must still treat it as UTC.
     start = _utc(2026, 8, 16, 7, 0)
     comp = Competition(external_id="RT", name="", registration_start_at=start)
     db_session.add(comp)
     await db_session.commit()
     await db_session.refresh(comp)
 
-    now = _utc(2026, 8, 16, 6, 45)
-    assert should_send_registration_reminder(comp.registration_start_at, now) is True
-    assert should_send_registration_reminder(comp.registration_start_at, start) is False
+    assert should_send_registration_reminder(comp.registration_start_at, _utc(2026, 8, 16, 5, 59), 60) is False
+    assert should_send_registration_reminder(comp.registration_start_at, _utc(2026, 8, 16, 6, 0), 60) is True
+    assert should_send_registration_reminder(comp.registration_start_at, _utc(2026, 8, 16, 7, 0), 60) is False
