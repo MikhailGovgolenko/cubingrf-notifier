@@ -66,3 +66,59 @@ Users can customize:
 
 The bot runs continuously in Docker with PostgreSQL as the database.
 Database schema changes are managed using Alembic migrations.
+
+---
+
+## Safe production deployment (Docker)
+
+The database lives in a **persistent named Docker volume**, `db-data`
+(Docker volume name: `cubingrf-notifier_db-data`). All user, competition and
+notification data is stored there and survives rebuilds, restarts and VPS
+reboots.
+
+### Production-safe commands
+
+These are safe and never destroy data:
+
+```bash
+# deploy / rebuild (applies Alembic migrations automatically on container start)
+docker compose up -d --build
+
+# restart just the services (data is untouched)
+docker compose restart
+
+# inspect current health
+docker compose ps
+```
+
+`web` connects to the `db` Docker service by name (`db:5432`) using the
+`DATABASE_URL` in `.env`; no ports are published to the host, and the app
+reaches Telegram / cubingrf.org through a normal bridge network.
+
+### NEVER run these on the production host (data loss)
+
+```bash
+docker compose down -v      # deletes the db-data volume
+docker volume rm ...        # deletes the volume
+docker system prune -a      # can remove volumes/images
+docker exec db psql ... -c "DROP DATABASE ...;"
+DROP TABLE / TRUNCATE / destructive migrations
+```
+
+### Backup before any risky maintenance
+
+```bash
+docker compose exec db pg_dump -U cubingrf -d cubingrf -Fc -f /tmp/cubingrf.dump
+docker compose cp db:/tmp/cubingrf.dump ./cubingrf-backup-$(date +%F).dump
+# restore (restores contents into the existing database, does not recreate it):
+docker compose exec db pg_restore -U cubingrf -d cubingrf --clean --if-exists < backup.dump
+```
+
+### Migrations
+
+All Alembic migrations are **additive / non-destructive** on the `upgrade`
+path — they create and add columns/tables only, and never `DROP TABLE`,
+`TRUNCATE`, or delete `users` rows (destructive operations only exist in
+`downgrade()`, which is never run by the deploy). User creation is
+idempotent: `/start` looks up the user by `telegram_id` first and never
+creates a duplicate.
