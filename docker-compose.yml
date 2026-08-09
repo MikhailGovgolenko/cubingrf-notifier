@@ -5,23 +5,34 @@ services:
       POSTGRES_USER: cubingrf
       POSTGRES_PASSWORD: password
       POSTGRES_DB: cubingrf
-    ports:
-      - "5432:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
+    networks:
+      - internal
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cubingrf -d cubingrf"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
 
   web:
     build: .
     env_file: .env
     depends_on:
-      - db
-    ports:
-      - "8000:8000"
+      db:
+        condition: service_healthy
     volumes:
       - ./src:/app/src
       - ./alembic:/app/alembic
       - ./alembic.ini:/app/alembic.ini
+    networks:
+      - internal
     restart: unless-stopped
 
 volumes:
   db-data:
+
+networks:
+  internal:
