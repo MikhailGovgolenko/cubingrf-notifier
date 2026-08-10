@@ -1,4 +1,9 @@
+# VPS
+$VpsHost = "mikhail@89.125.61.184"
+$DbContainer = "cubingrf-notifier-db-1"
+
 $sqlStats = @"
+\pset tuples_only on
 SET TIME ZONE 'Europe/Moscow';
 SET client_min_messages TO WARNING;
 
@@ -94,9 +99,10 @@ FROM (
 ORDER BY sort;
 "@
 
-$sqlUsers = @"
+$sqlUserDetails = @"
+\pset tuples_only off
 SET TIME ZONE 'Europe/Moscow';
-
+\echo
 SELECT
     to_char(u.created_at, 'YYYY-MM-DD HH24:MI:SSOF') AS created_at,
     CASE
@@ -123,8 +129,8 @@ ORDER BY u.created_at DESC;
 "@
 
 $sqlBlocked = @"
+\pset tuples_only on
 SET TIME ZONE 'Europe/Moscow';
-
 SELECT
     to_char(u.blocked_at, 'YYYY-MM-DD HH24:MI:SSOF') AS blocked_at,
     COALESCE(u.username, '-') AS username,
@@ -135,22 +141,20 @@ WHERE u.blocked_at IS NOT NULL
 ORDER BY u.blocked_at DESC;
 "@
 
-docker exec -i cubingrf-notifier-db-1 `
-    psql -U cubingrf -d cubingrf `
-    --pset=footer=off `
-    --pset=tuples_only=on `
-    --quiet `
-    -c "$sqlStats"
+# Весь SQL подаётся за один сеанс: один SSH + один psql.
+$sqlAll = $sqlStats + "`n" + $sqlUserDetails + "`n" + $sqlBlocked
 
-docker exec -i cubingrf-notifier-db-1 `
-    psql -U cubingrf -d cubingrf `
-    --pset=footer=off `
-    --quiet `
-    -c "$sqlUsers"
+$psqlArgs = @(
+    "-U", "cubingrf",
+    "-d", "cubingrf",
+    "--pset=footer=off",
+    "--quiet"
+)
 
-docker exec -i cubingrf-notifier-db-1 `
-    psql -U cubingrf -d cubingrf `
-    --pset=footer=off `
-    --pset=tuples_only=on `
-    --quiet `
-    -c "$sqlBlocked"
+$remoteCommand = "docker exec -i $DbContainer psql"
+foreach ($arg in $psqlArgs) {
+    $remoteCommand += " " + $arg
+}
+
+# Один вызов ssh; BatchMode исключает запрос пароля, ConnectTimeout не даёт зависнуть.
+$sqlAll | ssh -o BatchMode=yes -o ConnectTimeout=10 $VpsHost $remoteCommand
