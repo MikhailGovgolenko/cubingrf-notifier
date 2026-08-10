@@ -10,6 +10,7 @@ Note: a literal ``\\n`` collapses in Rich Message HTML, so every line break
 between fields is rendered with ``<br/>``.
 """
 from datetime import datetime, timedelta, timezone
+from math import ceil
 from typing import List, Optional
 from html import escape
 
@@ -91,13 +92,13 @@ def format_registration_countdown(
     if remaining <= timedelta(0):
         return None
 
-    total_minutes = max(1, int(remaining.total_seconds() // 60))
+    total_minutes = max(1, ceil(remaining.total_seconds() / 60))
     if total_minutes < 60:
         count, key = total_minutes, "minute"
     elif total_minutes < 24 * 60:
-        count, key = total_minutes // 60, "hour"
+        count, key = ceil(total_minutes / 60), "hour"
     else:
-        count, key = total_minutes // (24 * 60), "day"
+        count, key = ceil(total_minutes / (24 * 60)), "day"
 
     if language == "ru":
         unit = _ru_plural(count, _RU_UNITS[key])

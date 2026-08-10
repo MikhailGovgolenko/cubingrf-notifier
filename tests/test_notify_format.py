@@ -151,7 +151,7 @@ def test_countdown_days_ru():
     now = _utc(2026, 8, 16, 7, 0)
     assert format_registration_countdown(now + timedelta(days=3), "ru", now) == "🟡 Регистрация откроется через 3 дня"
     assert format_registration_countdown(now + timedelta(days=1), "ru", now) == "🟡 Регистрация откроется через 1 день"
-    assert format_registration_countdown(now + timedelta(days=2, hours=5), "ru", now) == "🟡 Регистрация откроется через 2 дня"
+    assert format_registration_countdown(now + timedelta(days=2, hours=5), "ru", now) == "🟡 Регистрация откроется через 3 дня"
     assert format_registration_countdown(now + timedelta(days=5), "ru", now) == "🟡 Регистрация откроется через 5 дней"
 
 
@@ -159,7 +159,7 @@ def test_countdown_hours_ru():
     now = _utc(2026, 8, 16, 7, 0)
     assert format_registration_countdown(now + timedelta(hours=5), "ru", now) == "🟡 Регистрация откроется через 5 часов"
     assert format_registration_countdown(now + timedelta(hours=1), "ru", now) == "🟡 Регистрация откроется через 1 час"
-    assert format_registration_countdown(now + timedelta(hours=2, minutes=30), "ru", now) == "🟡 Регистрация откроется через 2 часа"
+    assert format_registration_countdown(now + timedelta(hours=2, minutes=30), "ru", now) == "🟡 Регистрация откроется через 3 часа"
 
 
 def test_countdown_minutes_ru():
@@ -188,13 +188,48 @@ def test_countdown_past_or_zero_returns_none():
     assert format_registration_countdown(now, "ru", now) is None
 
 
+def test_countdown_rounds_up_en():
+    now = _utc(2026, 8, 16, 7, 0)
+    assert format_registration_countdown(
+        now + timedelta(minutes=29, seconds=59), "en", now
+    ) == "🟡 Registration opens in 30 minutes"
+    assert format_registration_countdown(
+        now + timedelta(minutes=30), "en", now
+    ) == "🟡 Registration opens in 30 minutes"
+    assert format_registration_countdown(
+        now + timedelta(minutes=30, seconds=1), "en", now
+    ) == "🟡 Registration opens in 31 minutes"
+    assert format_registration_countdown(
+        now + timedelta(minutes=59, seconds=59), "en", now
+    ) == "🟡 Registration opens in 1 hour"
+    assert format_registration_countdown(
+        now + timedelta(minutes=60), "en", now
+    ) == "🟡 Registration opens in 1 hour"
+    assert format_registration_countdown(
+        now + timedelta(hours=1, minutes=59, seconds=59), "en", now
+    ) == "🟡 Registration opens in 2 hours"
+
+
+def test_countdown_rounds_up_ru():
+    now = _utc(2026, 8, 16, 7, 0)
+    assert format_registration_countdown(
+        now + timedelta(minutes=29, seconds=59), "ru", now
+    ) == "🟡 Регистрация откроется через 30 минут"
+    assert format_registration_countdown(
+        now + timedelta(minutes=59, seconds=59), "ru", now
+    ) == "🟡 Регистрация откроется через 1 час"
+    assert format_registration_countdown(
+        now + timedelta(hours=1, minutes=59, seconds=59), "ru", now
+    ) == "🟡 Регистрация откроется через 2 часа"
+
+
 def test_scheduled_card_shows_countdown():
     comp = _comp(
         reg_status="scheduled",
         registration_start_at=datetime.now(timezone.utc) + timedelta(hours=5, minutes=30),
     )
     text = format_competition_card(comp, "ru")
-    assert "🟡 Регистрация откроется через 5 часов" in text
+    assert "🟡 Регистрация откроется через 6 часов" in text
 
 
 def test_scheduled_card_fallback_without_time():
