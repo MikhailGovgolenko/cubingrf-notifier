@@ -212,12 +212,12 @@ async def msg_set_rsf(message: Message, state: FSMContext):
     await state.clear()
     logger.info("User %s RSF -> %s", user_id, rsf)
     # Re-render the notifications screen so the user sees the updated RSF id.
+    # ``_notifications_text`` already renders the full screen (heading + body),
+    # so it is passed through unchanged — wrapping it again would duplicate the
+    # "Notifications" heading.
     user, language = await _load(user_id)
     await message.answer_rich(
-        rich_html(
-            f"<h1>{get_text(language, 'settings.notifications')}</h1>\n"
-            f"<p>{_notifications_text(user, language)}</p>"
-        ),
+        rich_html(_notifications_text(user, language)),
         reply_markup=notifications_keyboard(
             user.announcements_enabled,
             user.registration_notifications_enabled,

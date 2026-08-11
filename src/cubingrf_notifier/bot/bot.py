@@ -1,7 +1,7 @@
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.types import ErrorEvent, Message
+from aiogram.types import BotCommand, ErrorEvent, Message, BotCommandScopeDefault
 from aiogram.filters import Command
 
 from ..config import settings
@@ -43,6 +43,25 @@ dp.include_router(events_router)
 dp.include_router(regions_router)
 dp.include_router(language_router)
 dp.include_router(competitions_router)
+
+
+async def register_bot_commands() -> None:
+    """Publish the bot's commands in Telegram's command menu next to the input.
+
+    Localized descriptions are registered per supported language; the last
+    call (default scope, no language code) is the universal fallback.
+    """
+    if bot is None:
+        return
+    start_ru = BotCommand(command="start", description=get_text("ru", "commands.start"))
+    start_en = BotCommand(command="start", description=get_text("en", "commands.start"))
+    await bot.set_my_commands([start_ru], scope=BotCommandScopeDefault(), language_code="ru")
+    await bot.set_my_commands([start_en], scope=BotCommandScopeDefault(), language_code="en")
+    await bot.set_my_commands([start_en], scope=BotCommandScopeDefault())
+    logger.info("Bot commands registered")
+
+
+dp.startup.register(register_bot_commands)
 
 
 @dp.errors()

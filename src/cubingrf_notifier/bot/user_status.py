@@ -59,6 +59,9 @@ def format_settings_rich(
 
         <h1>⚙️ Settings</h1>
         <hr/>
+        <h3>RSF ID</h3>
+        <p>• AS03</p>
+        <hr/>
         <h3>🔔 Notifications</h3>
         <p>• Announcements ✅<br/>• Registrations ✅<br/>• Round results ✅</p>
         <hr/>
@@ -87,11 +90,14 @@ def format_settings_rich(
 
     sections = [
         (
+            f"<h3>{get_text(language, 'settings.rsf_id')}</h3>\n"
+            f"<p>{BULLET} {rsf}</p>"
+        ),
+        (
             f"<h3>{get_text(language, 'settings.notifications_section')}</h3>\n"
             f"<p>{BULLET} {get_text(language, 'settings.announcements')} {_on_off(announcements_enabled, language)}<br/>"
             f"{BULLET} {get_text(language, 'settings.registrations')} {_on_off(registration_notifications_enabled, language)}<br/>"
-            f"{BULLET} {get_text(language, 'settings.results')} {_on_off(result_notifications_enabled, language)}<br/>"
-            f"{BULLET} {get_text(language, 'settings.rsf_id')} {rsf}</p>"
+            f"{BULLET} {get_text(language, 'settings.results')} {_on_off(result_notifications_enabled, language)}</p>"
         ),
         f"<h3>{get_text(language, 'settings.region')}</h3>\n<p>{_regions_block(list(region_keys), language)}</p>",
         f"<h3>{get_text(language, 'settings.disciplines')}</h3>\n<p>{_events_block(list(event_codes), language)}</p>",

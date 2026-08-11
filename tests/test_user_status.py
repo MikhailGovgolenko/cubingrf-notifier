@@ -66,6 +66,30 @@ def test_settings_regions_list():
     assert "• Санкт-Петербург" in text
 
 
+def test_settings_rsf_id_is_separate_block():
+    user = SimpleNamespace(
+        announcements_enabled=True,
+        registration_notifications_enabled=True,
+        rsf_id="AS03",
+        events=[],
+        regions=[],
+    )
+    text = format_settings_rich(user, language="en")
+    # RSF ID is its own <h3> section with its own paragraph…
+    assert "<h3>RSF ID</h3>" in text
+    assert "<p>• AS03</p>" in text
+    # …and is no longer a bullet inside the Notifications block.
+    after_notifications = text.split("Notifications</h3>", 1)[1]
+    assert "AS03" not in after_notifications.split(CARD_SEPARATOR, 1)[0]
+
+
+def test_settings_rsf_not_set_shows_hint_separately():
+    # rsf omitted entirely -> separate RSF block shows the "not set" hint.
+    text = format_settings_rich(_user(), language="en")
+    assert "<h3>RSF ID</h3>" in text
+    assert get_text("en", "settings.rsf_not_set") in text
+
+
 def test_settings_all_regions_shows_all():
     user = _user(regions=list(ALL_REGION_KEYS))
     text = format_settings_rich(user, language="ru")
@@ -82,7 +106,7 @@ def test_settings_events_list():
 
 def test_settings_uses_rich_markup():
     text = format_settings_rich(_user(), language="en")
-    assert text.count(CARD_SEPARATOR) == 4
+    assert text.count(CARD_SEPARATOR) == 5
     assert "\n" in text
     # The page title is an <h1>; the first separator comes after it.
     assert text.startswith("<h1>")
@@ -103,7 +127,7 @@ def test_settings_keyboard_has_notifications_menu_button():
 def test_notifications_keyboard_toggle_labels():
     kb = notifications_keyboard(False, True, "ru")
     texts = [btn.text for row in kb.inline_keyboard for btn in row]
-    assert "🔔 Включить анонсы" in texts
+    assert "🔔 Включить уведомления об анонсах" in texts
     assert "⏰ Выключить уведомления о регистрации" in texts
     assert "⏳ Напоминание о регистрации" in texts
 

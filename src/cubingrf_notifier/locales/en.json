@@ -2,6 +2,7 @@
   "menu.title": "CubingRF Notifier",
   "menu.competitions": "📅 Competitions",
   "menu.settings": "⚙️ Settings",
+  "commands.start": "Open the main menu",
 
   "settings.title": "⚙️ Settings",
   "settings.notifications": "🔔 Notifications",
@@ -14,8 +15,8 @@
   "settings.rsf_prompt": "📇 Your RSF ID",
   "settings.rsf_hint": "Send your RSF ID (e.g. AS03). You can find it on your profile page on cubingrf.org.",
   "settings.rsf_saved": "RSF ID saved: {rsf}",
-  "settings.announcement_on": "🔔 Enable announcements",
-  "settings.announcement_off": "🔔 Disable announcements",
+  "settings.announcement_on": "🔔 Enable announcement notifications",
+  "settings.announcement_off": "🔔 Disable announcement notifications",
   "settings.registration_on": "⏰ Enable registration notifications",
   "settings.registration_off": "⏰ Disable registration notifications",
   "settings.results_on": "📊 Enable round result notifications",
