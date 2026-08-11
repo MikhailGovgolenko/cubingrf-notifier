@@ -60,7 +60,7 @@ def format_settings_rich(
         <h1>⚙️ Settings</h1>
         <hr/>
         <h3>RSF ID</h3>
-        <p>• AS03</p>
+        <p>AS03</p>
         <hr/>
         <h3>🔔 Notifications</h3>
         <p>• Announcements ✅<br/>• Registrations ✅<br/>• Round results ✅</p>
@@ -91,7 +91,7 @@ def format_settings_rich(
     sections = [
         (
             f"<h3>{get_text(language, 'settings.rsf_id')}</h3>\n"
-            f"<p>{BULLET} {rsf}</p>"
+            f"<p>{rsf}</p>"
         ),
         (
             f"<h3>{get_text(language, 'settings.notifications_section')}</h3>\n"

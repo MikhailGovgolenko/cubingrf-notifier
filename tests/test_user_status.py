@@ -77,7 +77,7 @@ def test_settings_rsf_id_is_separate_block():
     text = format_settings_rich(user, language="en")
     # RSF ID is its own <h3> section with its own paragraph…
     assert "<h3>RSF ID</h3>" in text
-    assert "<p>• AS03</p>" in text
+    assert "<p>AS03</p>" in text
     # …and is no longer a bullet inside the Notifications block.
     after_notifications = text.split("Notifications</h3>", 1)[1]
     assert "AS03" not in after_notifications.split(CARD_SEPARATOR, 1)[0]
