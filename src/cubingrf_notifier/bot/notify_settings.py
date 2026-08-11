@@ -185,8 +185,8 @@ async def cb_edit_rsf(callback: CallbackQuery, state: FSMContext):
     """Ask the user to type their RSF ID."""
     _, language = await _load(callback.from_user.id)
     await state.set_state(RsfEditState.waiting_for_rsf)
-    await callback.message.answer(
-        rich_message=rich_html(
+    await callback.message.answer_rich(
+        rich_html(
             f"<h1>{get_text(language, 'settings.rsf_prompt')}</h1>\n"
             f"<p>{get_text(language, 'settings.rsf_hint')}</p>"
         )
@@ -213,8 +213,8 @@ async def msg_set_rsf(message: Message, state: FSMContext):
     logger.info("User %s RSF -> %s", user_id, rsf)
     # Re-render the notifications screen so the user sees the updated RSF id.
     user, language = await _load(user_id)
-    await message.answer(
-        rich_message=rich_html(
+    await message.answer_rich(
+        rich_html(
             f"<h1>{get_text(language, 'settings.notifications')}</h1>\n"
             f"<p>{_notifications_text(user, language)}</p>"
         ),
