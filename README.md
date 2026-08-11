@@ -8,15 +8,17 @@
   <img src="assets/logo.svg" alt="cubingrf-notifier logo" width="220">
 </p>
 
-A Telegram bot that automatically tracks [cubingrf.org](https://cubingrf.org) and notifies users about upcoming competitions.
+A Telegram bot that automatically tracks [cubingrf.org](https://cubingrf.org) and sends personalized notifications about speedcubing competitions.
 
-The bot provides competition updates, registration reminders, and customizable notification settings.
+The bot provides notifications about competition announcements, registration openings, and round results, with customizable settings for events and regions.
 
 ### Features:
 
-- 🔔 Automatic notifications about new competitions.
-- ⏰ Customizable registration reminders.
+- 📢 Automatic notifications about new competition announcements.
+- ⏰ Customizable notifications about registration openings.
 - 🏆 Upcoming CubingRF competition information.
+- 📊 Notifications when round results are fully entered or edited.
+- 👤 Personal round results based on an RSF ID.
 - 🌍 Region-based competition filtering.
 - 🧩 Discipline-based competition filtering.
 - 🌐 Multilingual interface.
@@ -35,9 +37,13 @@ The bot provides competition updates, registration reminders, and customizable n
    - `/competitions` — view upcoming competitions.
    - `/help` — view help information.
 
-4. Receive notifications about:
-   - new competitions;
-   - upcoming registration openings.
+4. Optionally enter your **RSF ID** in the settings to receive your personal results for rounds in which you participate.
+
+5. Receive notifications about:
+   - new competition announcements;
+   - registration openings;
+   - completed or edited round results;
+   - your personal result, attempts, average, place, and qualification for the next round.
 
 ---
 
@@ -56,15 +62,36 @@ The bot provides competition updates, registration reminders, and customizable n
 
 Users can customize:
 
-- 🔔 Notification types.
+- 📢 Competition announcement notifications.
+- ⏰ Registration notifications.
+- 📊 Round result notifications.
+- 👤 RSF ID for personal results.
 - 🌍 Competition regions.
 - 🧩 Competition disciplines.
-- ⏰ Registration reminder interval.
+- ⏱️ Registration reminder interval.
 - 🌐 Interface language.
+
+The RSF ID is used only to identify the user's results. **No verification is required.**
+
+### Round result notifications:
+
+When results for a competition round have been entered for all participants, the bot can notify users that the round results are available.
+
+If results for the round are edited afterwards, the bot can also send an updated notification.
+
+For users with an RSF ID participating in the round, the notification includes:
+
+- competition name;
+- event and round;
+- the user's place;
+- individual attempts;
+- average and best result;
+- whether the user advanced to the next round.
 
 ---
 
 The bot runs continuously in Docker with PostgreSQL as the database.
+
 Database schema changes are managed using Alembic migrations.
 
 ---
@@ -72,9 +99,7 @@ Database schema changes are managed using Alembic migrations.
 ## Safe production deployment (Docker)
 
 The database lives in a **persistent named Docker volume**, `db-data`
-(Docker volume name: `cubingrf-notifier_db-data`). All user, competition and
-notification data is stored there and survives rebuilds, restarts and VPS
-reboots.
+(Docker volume name: `cubingrf-notifier_db-data`). All user, competition, notification, RSF ID, and result-tracking data is stored there and survives rebuilds, restarts, and VPS reboots.
 
 ### Production-safe commands
 
@@ -110,15 +135,21 @@ DROP TABLE / TRUNCATE / destructive migrations
 ```bash
 docker compose exec db pg_dump -U cubingrf -d cubingrf -Fc -f /tmp/cubingrf.dump
 docker compose cp db:/tmp/cubingrf.dump ./cubingrf-backup-$(date +%F).dump
-# restore (restores contents into the existing database, does not recreate it):
+
+# restore into the existing database:
 docker compose exec db pg_restore -U cubingrf -d cubingrf --clean --if-exists < backup.dump
 ```
 
 ### Migrations
 
 All Alembic migrations are **additive / non-destructive** on the `upgrade`
-path — they create and add columns/tables only, and never `DROP TABLE`,
-`TRUNCATE`, or delete `users` rows (destructive operations only exist in
-`downgrade()`, which is never run by the deploy). User creation is
-idempotent: `/start` looks up the user by `telegram_id` first and never
-creates a duplicate.
+path — they create and add columns/tables only and never `DROP TABLE`,
+`TRUNCATE`, or delete `users` rows.
+
+Destructive operations only exist in `downgrade()`, which is never run by the
+normal deployment process.
+
+User creation is idempotent: `/start` looks up the user by `telegram_id` first
+and never creates a duplicate.
+
+RSF IDs are stored as user settings and do not require verification.
