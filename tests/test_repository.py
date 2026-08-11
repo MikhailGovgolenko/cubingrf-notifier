@@ -7,6 +7,7 @@ from cubingrf_notifier.database.models import Base
 from cubingrf_notifier.database.repository import (
     CompetitionRepository,
     UserRepository,
+    RoundResultRepository,
 )
 from cubingrf_notifier.competitions.models import CompetitionDTO
 from cubingrf_notifier.i18n import DEFAULT_LANGUAGE
@@ -381,3 +382,96 @@ async def test_list_upcoming_orders_by_date(session):
     await session.flush()
     names = [c.name for c in await CompetitionRepository(session).list_upcoming_competitions()]
     assert names == ["Sooner", "Later"]
+
+
+# --- RSF ID ---
+
+async def test_set_and_get_rsf_id(session):
+    repo = UserRepository(session)
+    await repo.create_user(111)
+    await session.flush()
+    assert await repo.get_rsf_id(111) is None
+    await repo.set_rsf_id(111, "AS03")
+    await session.flush()
+    assert await repo.get_rsf_id(111) == "AS03"
+
+
+async def test_set_rsf_id_returns_none_for_unknown_user(session):
+    repo = UserRepository(session)
+    assert await repo.set_rsf_id(999, "AS03") is None
+
+
+async def test_clear_rsf_id(session):
+    repo = UserRepository(session)
+    await repo.create_user(111)
+    await repo.set_rsf_id(111, "AS03")
+    await repo.set_rsf_id(111, None)
+    await session.flush()
+    assert await repo.get_rsf_id(111) is None
+
+
+async def test_elegible_users_require_rsf_and_switches(session):
+    repo = UserRepository(session)
+    await repo.register_user(111, username="a", language_code="en")
+    await repo.register_user(222, username="b", language_code="en")
+    await repo.set_rsf_id(111, "AS03")
+    await session.flush()
+    ids = [u.telegram_id for u in await repo.list_result_tracking_users()]
+    # 111 has rsf but result switch defaults to true; 222 has no rsf.
+    assert 111 in ids
+    assert 222 not in ids
+
+    await repo.set_result_notifications_enabled(111, False)
+    await session.flush()
+    ids = [u.telegram_id for u in await repo.list_result_tracking_users()]
+    assert 111 not in ids
+
+
+# --- RoundResultRepository ---
+
+def _add_comp_for_state(session):
+    return CompetitionRepository(session).add_competition(
+        CompetitionDTO(external_id="SPB", name="SPB", date=_future_days(1), reg_status="open")
+    )
+
+
+async def test_get_or_create_state_creates_then_returns(session):
+    user = await UserRepository(session).create_user(111)
+    comp = await _add_comp_for_state(session)
+    await session.flush()
+
+    rrs = RoundResultRepository(session)
+    s1 = await rrs.get_or_create_state(user.id, comp.id, "333", 1)
+    s2 = await rrs.get_or_create_state(user.id, comp.id, "333", 1)
+    await session.flush()
+    assert s1.id == s2.id
+    assert s1.completed is False
+    assert s1.notified is False
+
+
+async def test_list_tracked_competition_ids(session):
+    user = await UserRepository(session).create_user(111)
+    comp = await _add_comp_for_state(session)
+    comp2 = await CompetitionRepository(session).add_competition(
+        CompetitionDTO(external_id="SPB2", name="SPB2", date=_future_days(2), reg_status="open")
+    )
+    await session.flush()
+
+    rrs = RoundResultRepository(session)
+    await rrs.get_or_create_state(user.id, comp.id, "333", 1)
+    await rrs.get_or_create_state(user.id, comp2.id, "222", 1)
+    await session.flush()
+    tracked = await rrs.list_tracked_competition_ids()
+    assert sorted(tracked) == sorted([comp.id, comp2.id])
+
+
+async def test_list_active_competition_ids_window(session):
+    await _add_comp(session, "Recent", _future_days(3), reg_status="open")
+    await _add_comp(session, "Old", _past_days(30), reg_status="open")
+    await session.flush()
+    ids = await CompetitionRepository(session).list_active_competition_ids(lookback_days=2, lookahead_days=14)
+    comps = []
+    for cid in ids:
+        c = await CompetitionRepository(session).get_by_id(cid)
+        comps.append(c.name)
+    assert comps == ["Recent"]

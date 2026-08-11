@@ -1,11 +1,11 @@
 from typing import Optional, List
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, delete
 from sqlalchemy.exc import IntegrityError
 
-from .models import Competition, User, Notification, UserEvent, UserRegion
+from .models import Competition, User, Notification, UserEvent, UserRegion, RoundResultState
 from ..competitions.availability import is_registration_available
 from ..competitions.models import CompetitionDTO
 from ..i18n import DEFAULT_LANGUAGE, get_user_language
@@ -221,6 +221,49 @@ class UserRepository:
             self.session.add(UserEvent(user_id=user.id, event_code=code))
         await self.session.flush()
 
+    async def set_rsf_id(self, telegram_id: int, rsf_id: Optional[str]) -> Optional[User]:
+        """Set the user's CubingRF participant ID (RSF ID).
+
+        Accepts ``None`` to clear it. Returns None if the user is not
+        registered. The value is stored verbatim (upper-cased by the caller);
+        it is never verified against the site.
+        """
+        user = await self.get_user_by_telegram_id(telegram_id)
+        if user is None:
+            return None
+        user.rsf_id = rsf_id
+        await self.session.flush()
+        return user
+
+    async def set_result_notifications_enabled(self, telegram_id: int, enabled: bool) -> Optional[User]:
+        """Flip the round-result notification switch. Returns the user or None."""
+        user = await self.get_user_by_telegram_id(telegram_id)
+        if user is None:
+            return None
+        user.result_notifications_enabled = enabled
+        await self.session.flush()
+        return user
+
+    async def get_rsf_id(self, telegram_id: int) -> Optional[str]:
+        """The user's RSF ID, or None if unset/not registered."""
+        user = await self.get_user_by_telegram_id(telegram_id)
+        return user.rsf_id if user is not None else None
+
+    async def list_result_tracking_users(self) -> List[User]:
+        """Users eligible for round-result notifications.
+
+        Requires the master switch, the result switch and an RSF ID to be set,
+        and excludes blocked users. These are the users the poller cares about.
+        """
+        q = select(User).where(
+            User.notifications_enabled.is_(True),
+            User.result_notifications_enabled.is_(True),
+            User.rsf_id.is_not(None),
+            User.blocked_at.is_(None),
+        )
+        res = await self.session.execute(q)
+        return list(res.scalars().all())
+
     async def get_user_regions(self, telegram_id: int) -> List[str]:
         """Region keys the user selected (empty if none/not registered)."""
         user = await self.get_user_by_telegram_id(telegram_id)
@@ -305,6 +348,25 @@ class CompetitionRepository:
         now = datetime.now(timezone.utc)
         return [c for c in comps if is_registration_available(c, now)]
 
+    async def list_active_competition_ids(self, lookback_days: int = 2, lookahead_days: int = 14) -> List[int]:
+        """Competition ids whose date is within a bracket around "now".
+
+        This is the discovery window for round-result tracking: results appear
+        during and shortly after an event (i.e. after registration has closed),
+        so we deliberately do *not* filter by registration availability here.
+        """
+        now = datetime.now(timezone.utc)
+        start = now - timedelta(days=lookback_days)
+        end = now + timedelta(days=lookahead_days)
+        q = (
+            select(Competition.id)
+            .where(Competition.date.is_not(None))
+            .where(Competition.date >= start)
+            .where(Competition.date <= end)
+        )
+        res = await self.session.execute(q)
+        return list(res.scalars().all())
+
     async def list_competitions_with_registration_start(self) -> List[Competition]:
         """Competitions that have a known registration opening moment.
 
@@ -352,3 +414,66 @@ class NotificationRepository:
         except IntegrityError:
             logger.info("Notification already sent for user %s, competition %s, kind %s", user_id, competition_id, kind)
         return notif
+
+
+class RoundResultRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def get_or_create_state(
+        self,
+        user_id: int,
+        competition_id: int,
+        event_code: str,
+        round_number: int,
+    ) -> RoundResultState:
+        """Return the state row for a (user, competition, event, round),
+        creating it (unnotified) if it does not exist yet."""
+        q = (
+            select(RoundResultState)
+            .where(
+                RoundResultState.user_id == user_id,
+                RoundResultState.competition_id == competition_id,
+                RoundResultState.event_code == event_code,
+                RoundResultState.round_number == round_number,
+            )
+        )
+        res = await self.session.execute(q)
+        state = res.scalar_one_or_none()
+        if state is None:
+            state = RoundResultState(
+                user_id=user_id,
+                competition_id=competition_id,
+                event_code=event_code,
+                round_number=round_number,
+            )
+            self.session.add(state)
+            await self.session.flush()
+        return state
+
+    async def get_states_for_user(self, user_id: int, competition_id: int) -> List[RoundResultState]:
+        """All round states for a user within one competition."""
+        q = (
+            select(RoundResultState)
+            .where(
+                RoundResultState.user_id == user_id,
+                RoundResultState.competition_id == competition_id,
+            )
+            .order_by(RoundResultState.event_code, RoundResultState.round_number)
+        )
+        res = await self.session.execute(q)
+        return list(res.scalars().all())
+
+    async def list_tracked_competition_ids(self) -> List[int]:
+        """Competitions for which at least one round state exists."""
+        q = select(RoundResultState.competition_id).distinct()
+        res = await self.session.execute(q)
+        return list(res.scalars().all())
+
+    async def competition_has_user_state(self, user_id: int, competition_id: int) -> bool:
+        q = select(func.count()).select_from(RoundResultState).where(
+            RoundResultState.user_id == user_id,
+            RoundResultState.competition_id == competition_id,
+        )
+        res = await self.session.execute(q)
+        return res.scalar_one() > 0

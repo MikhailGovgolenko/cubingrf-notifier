@@ -2,7 +2,9 @@
 import logging
 
 from aiogram import Router, F
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, Message
+from aiogram.fsm.context import FSMContext
+from aiogram.fsm.state import State, StatesGroup
 
 from ..database.session import AsyncSessionLocal
 from ..database.repository import UserRepository
@@ -25,6 +27,12 @@ logger = logging.getLogger(__name__)
 router = Router()
 
 
+class RsfEditState(StatesGroup):
+    """Awaiting the user's RSF ID while editing it."""
+
+    waiting_for_rsf = State()
+
+
 async def _load(telegram_id: int) -> tuple:
     async with AsyncSessionLocal() as sess:
         repo = UserRepository(sess)
@@ -39,9 +47,12 @@ async def _load(telegram_id: int) -> tuple:
 def _notifications_text(user, language: str) -> str:
     on = get_text(language, "status.notifications_enabled")
     off = get_text(language, "status.notifications_disabled")
+    rsf = user.rsf_id or get_text(language, "settings.rsf_not_set")
     lines = [
         f"{get_text(language, 'settings.announcements')}: {on if user.announcements_enabled else off}",
         f"{get_text(language, 'settings.registrations')}: {on if user.registration_notifications_enabled else off}",
+        f"{get_text(language, 'settings.results')}: {on if user.result_notifications_enabled else off}",
+        f"{get_text(language, 'settings.rsf_id')}: {rsf}",
         f"{get_text(language, 'settings.reminder_interval')}: {reminder_interval_label(user.reg_reminder_interval, language)}",
     ]
     body = "<br/>".join(lines)
@@ -62,6 +73,7 @@ async def show_notifications_screen(callback: CallbackQuery) -> None:
         reply_markup=notifications_keyboard(
             user.announcements_enabled,
             user.registration_notifications_enabled,
+            user.result_notifications_enabled,
             language,
         ),
     )
@@ -84,6 +96,7 @@ async def _reopen(callback: CallbackQuery) -> None:
         reply_markup=notifications_keyboard(
             user.announcements_enabled,
             user.registration_notifications_enabled,
+            user.result_notifications_enabled,
             language,
         ),
     )
@@ -151,3 +164,64 @@ async def cb_set_interval(callback: CallbackQuery, callback_data: ReminderCB):
 async def cb_reminder_back(callback: CallbackQuery):
     await show_notifications_screen(callback)
     await callback.answer()
+
+
+@router.callback_query(NotifCB.filter(F.action == "results"))
+async def cb_toggle_results(callback: CallbackQuery):
+    user_id = callback.from_user.id
+    async with AsyncSessionLocal() as sess:
+        repo = UserRepository(sess)
+        user = await repo.get_user_by_telegram_id(user_id)
+        if user is None:
+            user = await repo.create_user(user_id)
+        await repo.set_result_notifications_enabled(user_id, not user.result_notifications_enabled)
+        await sess.commit()
+    logger.info("User %s round results -> %s", user_id, not user.result_notifications_enabled)
+    await _reopen(callback)
+
+
+@router.callback_query(NotifCB.filter(F.action == "rsf"))
+async def cb_edit_rsf(callback: CallbackQuery, state: FSMContext):
+    """Ask the user to type their RSF ID."""
+    _, language = await _load(callback.from_user.id)
+    await state.set_state(RsfEditState.waiting_for_rsf)
+    await callback.message.answer(
+        rich_message=rich_html(
+            f"<h1>{get_text(language, 'settings.rsf_prompt')}</h1>\n"
+            f"<p>{get_text(language, 'settings.rsf_hint')}</p>"
+        )
+    )
+    await callback.answer()
+
+
+@router.message(RsfEditState.waiting_for_rsf)
+async def msg_set_rsf(message: Message, state: FSMContext):
+    """Capture the typed RSF ID and save it."""
+    user_id = message.from_user.id
+    raw = (message.text or "").strip()
+    # Accept only letters + digits (typical RSF ids like "AS03").
+    rsf = "".join(ch for ch in raw.upper() if ch.isalnum()) if raw else ""
+    rsf = rsf or None
+    async with AsyncSessionLocal() as sess:
+        repo = UserRepository(sess)
+        if await repo.get_user_by_telegram_id(user_id) is None:
+            await repo.create_user(user_id)
+        await repo.set_rsf_id(user_id, rsf)
+        await sess.commit()
+        language = await repo.get_user_language(user_id)
+    await state.clear()
+    logger.info("User %s RSF -> %s", user_id, rsf)
+    # Re-render the notifications screen so the user sees the updated RSF id.
+    user, language = await _load(user_id)
+    await message.answer(
+        rich_message=rich_html(
+            f"<h1>{get_text(language, 'settings.notifications')}</h1>\n"
+            f"<p>{_notifications_text(user, language)}</p>"
+        ),
+        reply_markup=notifications_keyboard(
+            user.announcements_enabled,
+            user.registration_notifications_enabled,
+            user.result_notifications_enabled,
+            language,
+        ),
+    )

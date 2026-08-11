@@ -21,6 +21,8 @@ from .notifications.telegram import TelegramNotifier
 from .notifications.matcher import should_notify_user
 from .notifications.reg_reminder import reconcile_registration_reminders
 
+from .results.service import RoundResultService
+
 from .bot.bot import dp, bot
 
 logging.basicConfig(
@@ -104,6 +106,20 @@ async def check_and_notify() -> None:
             logger.info("No new competitions")
 
 
+async def poll_round_results() -> None:
+    """Fast job: poll user round results and notify on completion/edits."""
+    async with AsyncSessionLocal() as sess:
+        service = RoundResultService(sess)
+        try:
+            result = await service.poll()
+            if result:
+                logger.info("Round-result poll events: %s", result)
+        except Exception:
+            logger.exception("Round-result poll failed")
+        finally:
+            await sess.close()
+
+
 async def main() -> None:
     if bot is None:
         raise RuntimeError(
@@ -114,6 +130,8 @@ async def main() -> None:
         check_and_notify,
         settings.poll_interval,
         reminder_reconciler=reconcile_registration_reminders,
+        results_poll_job=poll_round_results,
+        results_poll_interval=settings.results_poll_interval,
     )
     scheduler.start()
 

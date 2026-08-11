@@ -32,6 +32,13 @@ class User(Base):
     # stays as the master on/off switch (used by /start and /stop).
     announcements_enabled = Column(Boolean, nullable=False, default=True, server_default="true")
     registration_notifications_enabled = Column(Boolean, nullable=False, default=True, server_default="true")
+    # User's CubingRF participant ID (RSF ID), e.g. "AS03". Manually entered,
+    # no verification. NULL means round-result notifications cannot fire.
+    rsf_id = Column(String(32), nullable=True)
+    # Independent switch for round-result notifications. On by default so the
+    # behaviour is consistent with the other per-type toggles; without an
+    # ``rsf_id`` nothing is sent regardless of this flag.
+    result_notifications_enabled = Column(Boolean, nullable=False, default=True, server_default="true")
     # How far in advance (minutes) to remind about an opening registration.
     # One of the values in REMINDER_INTERVALS; default 30 minutes.
     reg_reminder_interval = Column(Integer, nullable=False, default=30, server_default="30")
@@ -110,3 +117,43 @@ class Notification(Base):
 
     user = relationship("User", back_populates="notifications")
     competition = relationship("Competition", back_populates="notifications")
+
+class RoundResultState(Base):
+    """Persisted state for a single (user, competition, event, round) result.
+
+    This is what lets the poller detect *new* results ("your round is
+    finished") versus *changed* results ("your result was edited"), so it
+    notifies only on real transitions, not on every poll.
+
+    ``completed`` records whether the round has been seen as finished (all
+    rostered participants have a recorded result). ``result_hash`` is a
+    fingerprint of the user's current round snapshot; a different hash at a
+    later poll means the result changed. When the round completes and the user
+    has a result we notify; if ``result_hash`` changes afterwards we notify a
+    smaller "edited" message.
+    """
+    __tablename__ = "round_result_states"
+    __table_args__ = (
+        UniqueConstraint("user_id", "competition_id", "event_code", "round_number", name="uq_rrs_user_competition_event_round"),
+    )
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    competition_id = Column(Integer, ForeignKey("competitions.id"), nullable=False)
+    event_code = Column(String(20), nullable=False)
+    round_number = Column(Integer, nullable=False)
+    # Numeric per-competition registrant id of the user (from Data/registrant-id).
+    registrant_id = Column(Integer, nullable=True)
+    # Whether this round has been observed as finished for this user.
+    completed = Column(Boolean, nullable=False, default=False, server_default="false")
+    # When the round was first observed as finished (drives polling backoff).
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+    # Do we need to report the *new* result (as opposed to only consistency runs)?
+    notified = Column(Boolean, nullable=False, default=False, server_default="false")
+    # Fingerprint of the user's current round snapshot (detects edits).
+    result_hash = Column(String(64), nullable=True)
+    # Last poll timestamp (used to back off polling of old/finished rounds).
+    last_checked_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+    user = relationship("User")
+    competition = relationship("Competition")

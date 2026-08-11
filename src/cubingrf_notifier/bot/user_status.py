@@ -48,6 +48,7 @@ def format_settings_rich(
     *,
     announcements_enabled: bool | None = None,
     registration_notifications_enabled: bool | None = None,
+    result_notifications_enabled: bool | None = None,
     event_codes=None,
     region_keys=None,
     language: str = DEFAULT_LANGUAGE,
@@ -59,7 +60,7 @@ def format_settings_rich(
         <h1>⚙️ Settings</h1>
         <hr/>
         <h3>🔔 Notifications</h3>
-        <p>• Announcements ✅<br/>• Registrations ✅</p>
+        <p>• Announcements ✅<br/>• Registrations ✅<br/>• Round results ✅</p>
         <hr/>
         <h3>🌍 Regions</h3>
         <p>• Москва</p>
@@ -74,17 +75,23 @@ def format_settings_rich(
         announcements_enabled = getattr(user, "announcements_enabled", True)
     if registration_notifications_enabled is None:
         registration_notifications_enabled = getattr(user, "registration_notifications_enabled", True)
+    if result_notifications_enabled is None:
+        result_notifications_enabled = getattr(user, "result_notifications_enabled", True)
 
     if event_codes is None:
         event_codes = [e.event_code for e in user.events]
     if region_keys is None:
         region_keys = [r.region_key for r in user.regions]
 
+    rsf = getattr(user, "rsf_id", None) or get_text(language, "settings.rsf_not_set")
+
     sections = [
         (
             f"<h3>{get_text(language, 'settings.notifications_section')}</h3>\n"
             f"<p>{BULLET} {get_text(language, 'settings.announcements')} {_on_off(announcements_enabled, language)}<br/>"
-            f"{BULLET} {get_text(language, 'settings.registrations')} {_on_off(registration_notifications_enabled, language)}</p>"
+            f"{BULLET} {get_text(language, 'settings.registrations')} {_on_off(registration_notifications_enabled, language)}<br/>"
+            f"{BULLET} {get_text(language, 'settings.results')} {_on_off(result_notifications_enabled, language)}<br/>"
+            f"{BULLET} {get_text(language, 'settings.rsf_id')} {rsf}</p>"
         ),
         f"<h3>{get_text(language, 'settings.region')}</h3>\n<p>{_regions_block(list(region_keys), language)}</p>",
         f"<h3>{get_text(language, 'settings.disciplines')}</h3>\n<p>{_events_block(list(event_codes), language)}</p>",

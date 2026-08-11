@@ -90,9 +90,10 @@ def settings_keyboard(
 def notifications_keyboard(
     announcements_enabled: bool,
     registration_notifications_enabled: bool,
+    result_notifications_enabled: bool = True,
     language: str = "ru",
 ) -> InlineKeyboardMarkup:
-    """Notification-settings screen: two toggles + reminder interval."""
+    """Notification-settings screen: three toggles + reminder interval + RSF."""
     kb = InlineKeyboardBuilder()
     ann_key = "settings.announcement_off" if announcements_enabled else "settings.announcement_on"
     reg_key = (
@@ -100,8 +101,11 @@ def notifications_keyboard(
         if registration_notifications_enabled
         else "settings.registration_on"
     )
+    res_key = "settings.results_off" if result_notifications_enabled else "settings.results_on"
     kb.row(_btn(get_text(language, ann_key), NotifCB(action="announcements")))
     kb.row(_btn(get_text(language, reg_key), NotifCB(action="registrations")))
+    kb.row(_btn(get_text(language, res_key), NotifCB(action="results")))
+    kb.row(_btn(get_text(language, "settings.rsf_id"), NotifCB(action="rsf")))
     kb.row(_btn(get_text(language, "settings.reminder_interval"), NotifCB(action="interval")))
     kb.row(_btn(get_text(language, "back"), NotifCB(action="back")))
     return kb.as_markup()
