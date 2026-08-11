@@ -36,8 +36,9 @@ def format_round_result(
 ) -> str:
     """A full notification for a finished (or edited) round.
 
-    Rendered as a Telegram Rich Message: ``<h1>`` heading, bold title, links
-    with ``<a href>`` and ``<br/>`` line breaks.
+    Rendered as a Telegram Rich Message: ``<h1>`` heading, links with
+    ``<a href>`` and ``<br/>`` line breaks. The layout uses blank lines
+    between top-level blocks and single line breaks within a block.
     """
     if edited:
         heading = get_text(language, "results.notification_edited")
@@ -57,26 +58,35 @@ def format_round_result(
         round=round_number,
     )
 
-    lines = [
-        f"🏆 <b>{comp_link}</b>",
+    # Blocks, ordered top to bottom, separated from each other by a blank line.
+    blocks: list[str] = [
+        f"<h1>{heading}</h1>",
+        comp_link,
+        title,
     ]
 
     if snapshot.place:
-        lines.append(get_text(language, "results.place", place=snapshot.place))
+        blocks.append(get_text(language, "results.place", place=snapshot.place))
 
+    # Attempts and the average/best share one block (single <br/> between).
+    detail_lines: list[str] = []
     attempts = format_attempts(snapshot, language)
     if attempts:
-        lines.append(get_text(language, "results.attempts", attempts=attempts))
-
+        detail_lines.append(get_text(language, "results.attempts", attempts=attempts))
     info: list[str] = []
     if snapshot.average is not None:
         info.append(get_text(language, "results.average", time=format_time(snapshot.average, language)))
     if snapshot.best is not None:
         info.append(get_text(language, "results.best", time=format_time(snapshot.best, language)))
-    if snapshot.advanced:
-        info.append(get_text(language, "results.advanced"))
     if info:
-        lines.append(" • ".join(info))
+        detail_lines.append(" • ".join(info))
+    if detail_lines:
+        blocks.append("<br/>".join(detail_lines))
 
-    body = "<br/>".join(lines)
-    return f"<h1>{heading}</h1>\n<p>{title}</p>\n<br/>{body}"
+    if snapshot.advanced:
+        blocks.append(get_text(language, "results.advanced"))
+
+    # The <h1> heading carries its own visual line, so the competition name
+    # sits directly beneath it (no <br/> between them). Every later block is
+    # separated by a single blank line (<br/><br/>).
+    return f"{blocks[0]}{blocks[1]}" + ("<br/><br/>" + "<br/><br/>".join(blocks[2:]) if len(blocks) > 2 else "")

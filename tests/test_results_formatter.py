@@ -54,6 +54,41 @@ def test_format_round_result_new_includes_all_fields():
     assert "SPB Test" in text
 
 
+def test_format_round_result_layout_blank_lines():
+    snap = RoundSnapshot(
+        place=3,
+        attempts=(820, 801, 799, 814, 810),
+        average=808,
+        best=799,
+        advanced=True,
+    )
+    text = format_round_result(
+        "Spring in Moscow 2026",
+        "https://cubingrf.org/competitions/x",
+        "333",
+        2,
+        snap,
+        language="ru",
+    )
+    # Heading comes first, competition and title follow, then place, then a
+    # block holding attempts+stats, and advanced last.
+    assert text.index("<h1>") < text.index("Spring in Moscow")
+    assert text.index("Spring in Moscow") < text.index("раунд 2")
+    assert text.index("раунд 2") < text.index("Место: 3")
+    assert text.index("Место: 3") < text.index("Попытки:")
+    assert text.index("вы прошли") > text.index("Среднее:")
+    # The <h1> heading sits directly above the competition name with only a
+    # line break (no blank line)…
+    assert "<h1>🏁 Ваш результат в раунде</h1><a href=" in text
+    # …while every later block is separated by exactly one blank line.
+    assert "Spring in Moscow 2026</a><br/><br/>" in text
+    assert "раунд 2<br/><br/>Место:" in text
+    assert "Место: 3<br/><br/>Попытки:" in text
+    assert "7.99<br/><br/>🏆 вы прошли" in text
+    # …but attempts and the stats line share one block (single <br/>, no blank).
+    assert "8.10<br/>Среднее:" in text
+
+
 def test_format_round_result_edited_title():
     snap = RoundSnapshot(place=1, attempts=(500, 500, 500, 500, 500), average=500, best=500)
     text = format_round_result("Comp", None, "222", 1, snap, language="ru", edited=True)
