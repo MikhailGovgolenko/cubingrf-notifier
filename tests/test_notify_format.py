@@ -102,6 +102,21 @@ def test_notification_unknown_registration_no_line():
     assert "Регистрация" not in text
 
 
+def test_notification_cancelled_label_ru():
+    comp = _comp(reg_status="cancelled")
+    text = format_competition_notification(comp, "ru")
+    assert "⛔ Соревнование отменено" in text
+    assert "Идёт регистрация" not in text
+    assert "Регистрация закрыта" not in text
+
+
+def test_notification_cancelled_label_en():
+    comp = _comp(reg_status="cancelled")
+    text = format_competition_notification(comp, "en")
+    assert "⛔ Competition cancelled" in text
+    assert "Registration is open" not in text
+
+
 def test_date_range_localized_both_langs():
     start, end = datetime(2026, 12, 28), datetime(2027, 1, 3)
     assert format_date_range(start, end, "ru") == "28 декабря 2026 — 3 января 2027"

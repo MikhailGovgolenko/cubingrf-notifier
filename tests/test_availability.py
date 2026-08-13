@@ -57,6 +57,13 @@ def test_closed_registration_is_excluded():
     assert not is_registration_available(comp, NOW)
 
 
+def test_cancelled_competition_stays_visible():
+    # Cancelled competitions remain on the page so the "Competition cancelled"
+    # badge is shown; the cancelled state is rendered by the formatter.
+    comp = _comp(date=NOW + timedelta(days=2), end_date=NOW + timedelta(days=3), reg_status="cancelled")
+    assert is_registration_available(comp, NOW)
+
+
 def test_missing_date_is_excluded():
     comp = _comp(date=None, reg_status="open")
     assert not is_registration_available(comp, NOW)

@@ -41,6 +41,7 @@ _RANGE_FULL_RE = re.compile(
 _OPEN = "open"
 _SCHEDULED = "scheduled"
 _CLOSED = "closed"
+_CANCELLED = "cancelled"
 
 # Moscow time is UTC+3 all year; the site states offsets explicitly ('МСК+0',
 # 'МСК+4', ...) next to the registration window.
@@ -306,8 +307,8 @@ class CubingRFHtmlScraper(CompetitionSource):
     def _extract_reg_status(self, card) -> Optional[str]:
         """Normalize the registration status shown on a competition card.
 
-        Returns 'open', 'scheduled', 'closed' or None when the status text
-        cannot be interpreted (never raises).
+        Returns 'open', 'scheduled', 'closed', 'cancelled' or None when the
+        status text cannot be interpreted (never raises).
         """
         try:
             status_el = card.css_first(".status")
@@ -321,6 +322,11 @@ class CubingRFHtmlScraper(CompetitionSource):
     @staticmethod
     def _normalize_reg_status(text: str) -> Optional[str]:
         text = text.lower()
+        # Cancellation is checked first: a cancelled competition must never be
+        # shown with a misleading "registration open/closed" label, even if the
+        # card text also contains one of the registration phrases.
+        if "отмен" in text:
+            return _CANCELLED
         if (
             "регистрация закрыта" in text
             or "результаты утверждены" in text

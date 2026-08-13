@@ -11,6 +11,7 @@ from datetime import datetime, timezone
 _OPEN = "open"
 _SCHEDULED = "scheduled"
 _CLOSED = "closed"
+_CANCELLED = "cancelled"
 
 
 def _as_utc(value: datetime | None) -> datetime | None:
@@ -35,6 +36,9 @@ def is_registration_available(
     * event already started (``date`` today or earlier) → excluded;
     * missing event start date → excluded (not enough information);
     * ``reg_status == 'closed'`` → excluded;
+    * ``reg_status == 'cancelled'`` → kept visible so the page can show the
+      "Competition cancelled" badge (the cancelled state is rendered by the
+      formatter, not by this helper);
     * ``reg_status`` open/scheduled and event not started → shown;
     * unknown ``reg_status``: shown only when ``registration_start_at`` is
       known (a past/future opening means registration is or will be open, and
@@ -58,6 +62,9 @@ def is_registration_available(
 
     if reg_status == _CLOSED:
         return False
+    if reg_status == _CANCELLED:
+        # Kept visible: the competitions page shows the cancellation badge.
+        return True
     if reg_status in (_OPEN, _SCHEDULED):
         return True
     if reg_start is None:

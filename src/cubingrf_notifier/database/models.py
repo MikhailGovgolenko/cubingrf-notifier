@@ -65,7 +65,7 @@ class Competition(Base):
     end_date = Column(DateTime(timezone=True), nullable=True)
     url = Column(String(1024), nullable=True)
     disciplines = Column(JSON, nullable=True)
-    # Registration availability: 'open' | 'scheduled' | 'closed' | None (unknown).
+    # Registration availability: 'open' | 'scheduled' | 'closed' | 'cancelled' | None (unknown).
     reg_status = Column(String(20), nullable=True)
     # When registration opens (tz-aware UTC; None when the site gives no time).
     registration_start_at = Column(DateTime(timezone=True), nullable=True)

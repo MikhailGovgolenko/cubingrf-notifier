@@ -34,6 +34,7 @@ _REG_LABEL_KEYS = {
     "open": "competitions.reg_open",
     "scheduled": "competitions.reg_scheduled",
     "closed": "competitions.reg_closed",
+    "cancelled": "competitions.reg_cancelled",
 }
 
 
