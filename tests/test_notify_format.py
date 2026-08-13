@@ -166,8 +166,24 @@ def test_countdown_days_ru():
     now = _utc(2026, 8, 16, 7, 0)
     assert format_registration_countdown(now + timedelta(days=3), "ru", now) == "🟡 Регистрация откроется через 3 дня"
     assert format_registration_countdown(now + timedelta(days=1), "ru", now) == "🟡 Регистрация откроется через 1 день"
-    assert format_registration_countdown(now + timedelta(days=2, hours=5), "ru", now) == "🟡 Регистрация откроется через 3 дня"
+    assert format_registration_countdown(now + timedelta(days=2, hours=5), "ru", now) == "🟡 Регистрация откроется через 2 дня"
     assert format_registration_countdown(now + timedelta(days=5), "ru", now) == "🟡 Регистрация откроется через 5 дней"
+
+
+def test_countdown_days_whole_days_only():
+    """A 2.x-day wait shows whole days ('2 дня'), not the next day ('3 дня').
+
+    Regression for VIII этап Кубка России 2026: registration opens 16 Aug
+    17:00 Krasnoyarsk (UTC+7) = 16 Aug 10:00 UTC. A few days out the site shows
+    'До регистрации 2 дня'; the bot must not round 2 days + hours up to 3.
+    """
+    now = _utc(2026, 8, 14, 8, 0)  # 2 days 2 hours before opening
+    assert format_registration_countdown(_utc(2026, 8, 16, 10, 0), "ru", now) == "🟡 Регистрация откроется через 2 дня"
+    assert format_registration_countdown(_utc(2026, 8, 16, 10, 0), "en", now) == "🟡 Registration opens in 2 days"
+    # 2 days 23 hours is still "2 days" (whole days), not the next day.
+    assert format_registration_countdown(_utc(2026, 8, 16, 10, 0) + timedelta(hours=21), "ru", now) == "🟡 Регистрация откроется через 2 дня"
+    # Exactly 3 days -> 3 days.
+    assert format_registration_countdown(_utc(2026, 8, 14, 8, 0) + timedelta(days=3), "ru", now) == "🟡 Регистрация откроется через 3 дня"
 
 
 def test_countdown_hours_ru():
@@ -236,6 +252,28 @@ def test_countdown_rounds_up_ru():
     assert format_registration_countdown(
         now + timedelta(hours=1, minutes=59, seconds=59), "ru", now
     ) == "🟡 Регистрация откроется через 2 часа"
+
+
+def test_countdown_hour_and_minutes_rounds_up_to_hours():
+    """1h30m should not understate: it is rounded up to the next hour."""
+    now = _utc(2026, 8, 16, 7, 0)
+    assert format_registration_countdown(
+        now + timedelta(hours=1, minutes=30), "en", now
+    ) == "🟡 Registration opens in 2 hours"
+    assert format_registration_countdown(
+        now + timedelta(hours=1, minutes=30), "ru", now
+    ) == "🟡 Регистрация откроется через 2 часа"
+
+
+def test_countdown_less_than_a_minute_rounds_to_one_minute():
+    """Under a minute (but not yet open) must never read 0 minutes."""
+    now = _utc(2026, 8, 16, 7, 0)
+    assert format_registration_countdown(
+        now + timedelta(seconds=30), "en", now
+    ) == "🟡 Registration opens in 1 minute"
+    assert format_registration_countdown(
+        now + timedelta(seconds=59), "ru", now
+    ) == "🟡 Регистрация откроется через 1 минуту"
 
 
 def test_scheduled_card_shows_countdown():

@@ -99,7 +99,9 @@ def format_registration_countdown(
     elif total_minutes < 24 * 60:
         count, key = ceil(total_minutes / 60), "hour"
     else:
-        count, key = ceil(total_minutes / (24 * 60)), "day"
+        # Days are shown as the number of whole days remaining (matching the
+        # source site, which never rounds a 2.x-day wait up to "3 days").
+        count, key = max(1, int(remaining.total_seconds() // (24 * 3600))), "day"
 
     if language == "ru":
         unit = _ru_plural(count, _RU_UNITS[key])
