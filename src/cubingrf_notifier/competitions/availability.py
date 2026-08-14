@@ -5,13 +5,17 @@ actually register for. Real dates are the primary source of truth
 (``date`` / ``end_date`` / ``registration_start_at``); ``reg_status`` is used
 as a supplementary signal and never as the sole condition.
 """
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 # Registration statuses that independently confirm availability.
 _OPEN = "open"
 _SCHEDULED = "scheduled"
 _CLOSED = "closed"
 _CANCELLED = "cancelled"
+
+# How long a cancelled competition stays visible after cancellation is first
+# observed (so users see the "Competition cancelled" badge, then it disappears).
+_CANCELLED_VISIBLE = timedelta(hours=24)
 
 
 def _as_utc(value: datetime | None) -> datetime | None:
@@ -37,8 +41,11 @@ def is_registration_available(
     * missing event start date → excluded (not enough information);
     * ``reg_status == 'closed'`` → excluded;
     * ``reg_status == 'cancelled'`` → kept visible so the page can show the
-      "Competition cancelled" badge (the cancelled state is rendered by the
-      formatter, not by this helper);
+      "Competition cancelled" badge, but only for 24 hours from when the
+      cancellation was first observed (``cancelled_at``); after that it is
+      excluded. A cancelled competition with no ``cancelled_at`` yet is kept
+      visible so it never vanishes abruptly (the service stamps it on the next
+      scrape);
     * ``reg_status`` open/scheduled and event not started → shown;
     * unknown ``reg_status``: shown only when ``registration_start_at`` is
       known (a past/future opening means registration is or will be open, and
@@ -63,8 +70,13 @@ def is_registration_available(
     if reg_status == _CLOSED:
         return False
     if reg_status == _CANCELLED:
-        # Kept visible: the competitions page shows the cancellation badge.
-        return True
+        # Kept visible for the 24h grace window (shows the cancellation badge);
+        # after that it no longer appears in user lists. Without a timestamp it
+        # stays visible until the service records one.
+        cancelled_at = _as_utc(getattr(comp, "cancelled_at", None))
+        if cancelled_at is None:
+            return True
+        return now < cancelled_at + _CANCELLED_VISIBLE
     if reg_status in (_OPEN, _SCHEDULED):
         return True
     if reg_start is None:

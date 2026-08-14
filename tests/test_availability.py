@@ -11,12 +11,14 @@ def _comp(
     end_date=None,
     registration_start_at=None,
     reg_status=None,
+    cancelled_at=None,
 ):
     return SimpleNamespace(
         date=date,
         end_date=end_date,
         registration_start_at=registration_start_at,
         reg_status=reg_status,
+        cancelled_at=cancelled_at,
     )
 
 
@@ -61,6 +63,42 @@ def test_cancelled_competition_stays_visible():
     # Cancelled competitions remain on the page so the "Competition cancelled"
     # badge is shown; the cancelled state is rendered by the formatter.
     comp = _comp(date=NOW + timedelta(days=2), end_date=NOW + timedelta(days=3), reg_status="cancelled")
+    assert is_registration_available(comp, NOW)
+
+
+def test_cancelled_visible_immediately_after_detection():
+    comp = _comp(reg_status="cancelled", cancelled_at=NOW)
+    assert is_registration_available(comp, NOW)
+
+
+def test_cancelled_visible_at_23h59_after_detection():
+    comp = _comp(
+        reg_status="cancelled",
+        cancelled_at=NOW - timedelta(hours=23, minutes=59),
+    )
+    assert is_registration_available(comp, NOW)
+
+
+def test_cancelled_hidden_after_24_hours():
+    comp = _comp(reg_status="cancelled", cancelled_at=NOW - timedelta(hours=24))
+    assert not is_registration_available(comp, NOW)
+
+
+def test_cancelled_hidden_long_after_24_hours():
+    comp = _comp(reg_status="cancelled", cancelled_at=NOW - timedelta(days=3))
+    assert not is_registration_available(comp, NOW)
+
+
+def test_cancelled_without_timestamp_stays_visible():
+    # No cancelled_at yet (e.g. a legacy cancelled row before the service
+    # stamps it) never vanishes abruptly.
+    comp = _comp(reg_status="cancelled", cancelled_at=None)
+    assert is_registration_available(comp, NOW)
+
+
+def test_non_cancelled_unaffected_by_cancelled_at():
+    # An open/scheduled competition ignores cancelled_at entirely.
+    comp = _comp(reg_status="open", cancelled_at=NOW - timedelta(days=1))
     assert is_registration_available(comp, NOW)
 
 

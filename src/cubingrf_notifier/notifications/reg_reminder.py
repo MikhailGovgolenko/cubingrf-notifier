@@ -131,6 +131,10 @@ async def send_registration_reminder(
         comp = await comp_repo.get_by_id(competition_id)
         if user is None or comp is None:
             return
+        if comp.reg_status == "cancelled":
+            # Never remind about a cancelled competition, even if a job was
+            # scheduled before the cancellation was observed.
+            return
 
         now = datetime.now(timezone.utc)
         start = _as_utc(comp.registration_start_at)
@@ -239,6 +243,15 @@ async def reconcile_registration_reminders(
         for comp in candidates:
             start = _as_utc(comp.registration_start_at)
             if start is None or start <= now:
+                continue
+            if comp.reg_status == "cancelled":
+                # No reminder for a cancelled competition: drop any job that
+                # was scheduled before the cancellation was observed.
+                for user in users:
+                    job_id = _reminder_job_id(user.id, comp.id)
+                    if scheduler.get_job(job_id) is not None:
+                        scheduler.remove_job(job_id)
+                        removed += 1
                 continue
             for user in users:
                 job_id = _reminder_job_id(user.id, comp.id)

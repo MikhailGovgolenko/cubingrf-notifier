@@ -247,3 +247,35 @@ def test_reg_reminder_kind_distinct_and_within_column():
     assert k1.startswith("reg_soon:")
     assert len(k1) <= 20  # fits the notifications.kind column
     assert reg_reminder_kind(None) == "reg_soon"
+
+
+# ---------- cancelled competition never reminds ----------
+
+async def test_cancelled_competition_removes_and_never_readds_job(factory):
+    session_factory, make_user = factory
+    user, comp = await make_user()
+
+    sched = _FakeScheduler()
+    await reconcile_registration_reminders(sched, session_factory)
+    assert len(sched.jobs) == 1  # a normal reminder was scheduled
+
+    async with session_factory() as sess:
+        db_comp = await sess.get(Competition, comp.id)
+        db_comp.reg_status = "cancelled"
+        await sess.commit()
+
+    await reconcile_registration_reminders(sched, session_factory)
+    assert len(sched.jobs) == 0  # cancelled -> job dropped, not re-added
+
+    # Repeated reconcile stays clean (no resurrection, no error).
+    await reconcile_registration_reminders(sched, session_factory)
+    assert len(sched.jobs) == 0
+
+
+async def test_cancelled_competition_is_not_scheduled(factory):
+    session_factory, make_user = factory
+    user, comp = await make_user(comp_kwargs={"reg_status": "cancelled"})
+
+    sched = _FakeScheduler()
+    await reconcile_registration_reminders(sched, session_factory)
+    assert len(sched.jobs) == 0

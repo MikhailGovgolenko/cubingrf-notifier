@@ -300,7 +300,7 @@ def _past_days(n: int) -> datetime:
 
 
 async def _add_comp(session, ext_id, date, reg_status=None, end_date=None,
-                    registration_start_at=None):
+                    registration_start_at=None, cancelled_at=None):
     dto = CompetitionDTO(
         external_id=ext_id,
         name=ext_id,
@@ -309,7 +309,10 @@ async def _add_comp(session, ext_id, date, reg_status=None, end_date=None,
         reg_status=reg_status,
         registration_start_at=registration_start_at,
     )
-    return await CompetitionRepository(session).add_competition(dto)
+    comp = await CompetitionRepository(session).add_competition(dto)
+    if cancelled_at is not None:
+        comp.cancelled_at = cancelled_at
+    return comp
 
 
 async def test_list_upcoming_includes_open_and_scheduled_future(session):
@@ -382,6 +385,27 @@ async def test_list_upcoming_orders_by_date(session):
     await session.flush()
     names = [c.name for c in await CompetitionRepository(session).list_upcoming_competitions()]
     assert names == ["Sooner", "Later"]
+
+
+async def test_list_upcoming_includes_recently_cancelled(session):
+    await _add_comp(
+        session, "CancelledRecent", _future_days(3),
+        reg_status="cancelled",
+        cancelled_at=datetime.now(timezone.utc) - timedelta(hours=23, minutes=59),
+    )
+    await session.flush()
+    names = [c.name for c in await CompetitionRepository(session).list_upcoming_competitions()]
+    assert names == ["CancelledRecent"]
+
+
+async def test_list_upcoming_excludes_cancelled_after_24_hours(session):
+    await _add_comp(
+        session, "CancelledOld", _future_days(3),
+        reg_status="cancelled",
+        cancelled_at=datetime.now(timezone.utc) - timedelta(hours=24),
+    )
+    await session.flush()
+    assert await CompetitionRepository(session).list_upcoming_competitions() == []
 
 
 # --- RSF ID ---

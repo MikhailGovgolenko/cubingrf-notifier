@@ -1,6 +1,6 @@
 from typing import List
 import logging
-from datetime import timezone
+from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -10,6 +10,27 @@ from ..database.repository import CompetitionRepository
 from ..database.models import Competition
 
 logger = logging.getLogger(__name__)
+
+_CANCELLED = "cancelled"
+
+
+def _mark_cancelled_once(comp: Competition, now: datetime | None = None) -> bool:
+    """Stamp the cancellation moment the first time a competition is seen as
+    cancelled.
+
+    Sets ``comp.cancelled_at`` to ``now`` only when the competition is marked
+    cancelled and has no timestamp yet, so repeated scraper runs never reset
+    the 24-hour grace window. This also covers competitions that were already
+    cancelled before this feature shipped: their first scrape after upgrade
+    records a fresh timestamp, giving them a full 24-hour window from then.
+    Returns True when a timestamp was newly written.
+    """
+    if comp.reg_status != _CANCELLED or comp.cancelled_at is not None:
+        return False
+    if now is None:
+        now = datetime.now(timezone.utc)
+    comp.cancelled_at = now
+    return True
 
 
 def _dates_differ(current, new) -> bool:
@@ -63,6 +84,13 @@ class CompetitionService:
                         existing.external_id,
                         dto.reg_status,
                     )
+                if _mark_cancelled_once(existing):
+                    logger.info(
+                        "Competition %s (%s) marked cancelled at %s",
+                        existing.name,
+                        existing.external_id,
+                        existing.cancelled_at,
+                    )
                 if _dates_differ(existing.date, dto.date) or _dates_differ(existing.end_date, dto.end_date):
                     existing.date = dto.date
                     existing.end_date = dto.end_date
@@ -89,6 +117,13 @@ class CompetitionService:
                 await self.session.rollback()
                 logger.info("Competition %s already stored (race), skipping", dto.external_id)
                 continue
+            if _mark_cancelled_once(comp):
+                logger.info(
+                    "Competition %s (%s) stored already cancelled at %s",
+                    comp.name,
+                    dto.external_id,
+                    comp.cancelled_at,
+                )
             new.append(comp)
             logger.info("Stored new competition %s (%s)", comp.name, dto.external_id)
         return new
