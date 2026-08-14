@@ -1,5 +1,5 @@
 # VPS
-$VpsHost = "mikhail@89.125.61.184"
+$VpsHost = "mikhail@146.103.104.170"
 $DbContainer = "cubingrf-notifier-db-1"
 
 $sqlStats = @"
