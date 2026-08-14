@@ -10,7 +10,6 @@ Note: a literal ``\\n`` collapses in Rich Message HTML, so every line break
 between fields is rendered with ``<br/>``.
 """
 from datetime import datetime, timedelta, timezone
-from math import ceil
 from typing import List, Optional
 from html import escape
 
@@ -93,15 +92,19 @@ def format_registration_countdown(
     if remaining <= timedelta(0):
         return None
 
-    total_minutes = max(1, ceil(remaining.total_seconds() / 60))
+    # Round down (floor) to whole units in every band so the bot matches the
+    # source site, which never inflates a wait: 15h25m reads "15 часов", a
+    # 2.x-day wait reads "2 дня". Each band is floored independently so the
+    # unit chosen for a given duration is the site's too (a 23h59m wait shows
+    # "23 часа", not "1 день"). The minimum of 1 keeps an almost-open
+    # registration from reading "0".
+    total_minutes = remaining.total_seconds() / 60
     if total_minutes < 60:
-        count, key = total_minutes, "minute"
+        count, key = max(1, int(total_minutes)), "minute"
     elif total_minutes < 24 * 60:
-        count, key = ceil(total_minutes / 60), "hour"
+        count, key = max(1, int(total_minutes / 60)), "hour"
     else:
-        # Days are shown as the number of whole days remaining (matching the
-        # source site, which never rounds a 2.x-day wait up to "3 days").
-        count, key = max(1, int(remaining.total_seconds() // (24 * 3600))), "day"
+        count, key = max(1, int(total_minutes / (24 * 60))), "day"
 
     if language == "ru":
         unit = _ru_plural(count, _RU_UNITS[key])

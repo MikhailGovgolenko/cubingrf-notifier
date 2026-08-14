@@ -190,7 +190,21 @@ def test_countdown_hours_ru():
     now = _utc(2026, 8, 16, 7, 0)
     assert format_registration_countdown(now + timedelta(hours=5), "ru", now) == "🟡 Регистрация откроется через 5 часов"
     assert format_registration_countdown(now + timedelta(hours=1), "ru", now) == "🟡 Регистрация откроется через 1 час"
-    assert format_registration_countdown(now + timedelta(hours=2, minutes=30), "ru", now) == "🟡 Регистрация откроется через 3 часа"
+    assert format_registration_countdown(now + timedelta(hours=2, minutes=30), "ru", now) == "🟡 Регистрация откроется через 2 часа"
+
+
+def test_countdown_v_etap_krasnoyarsk_matches_site():
+    """Regression: V этап Кубка России 2026 (Krasnoyarsk).
+
+    Registration opens 15 Aug 2026 12:00 (МСК+4, UTC+7) = 15 Aug 05:00 UTC. At
+    13:35 UTC on 14 Aug the true wait is 15h25m; cubingrf.org shows 'До
+    регистрации 15 часов'. The bot previously rounded up to 16; it must match
+    the site and show 15.
+    """
+    start = _utc(2026, 8, 15, 5, 0)
+    now = _utc(2026, 8, 14, 13, 35)
+    assert format_registration_countdown(start, "ru", now) == "🟡 Регистрация откроется через 15 часов"
+    assert format_registration_countdown(start, "en", now) == "🟡 Registration opens in 15 hours"
 
 
 def test_countdown_minutes_ru():
@@ -219,50 +233,66 @@ def test_countdown_past_or_zero_returns_none():
     assert format_registration_countdown(now, "ru", now) is None
 
 
-def test_countdown_rounds_up_en():
+def test_countdown_rounds_down_en():
+    """Hours/minutes round down to whole units, matching cubingrf.org."""
     now = _utc(2026, 8, 16, 7, 0)
     assert format_registration_countdown(
         now + timedelta(minutes=29, seconds=59), "en", now
-    ) == "🟡 Registration opens in 30 minutes"
+    ) == "🟡 Registration opens in 29 minutes"
     assert format_registration_countdown(
         now + timedelta(minutes=30), "en", now
     ) == "🟡 Registration opens in 30 minutes"
     assert format_registration_countdown(
         now + timedelta(minutes=30, seconds=1), "en", now
-    ) == "🟡 Registration opens in 31 minutes"
+    ) == "🟡 Registration opens in 30 minutes"
     assert format_registration_countdown(
         now + timedelta(minutes=59, seconds=59), "en", now
-    ) == "🟡 Registration opens in 1 hour"
+    ) == "🟡 Registration opens in 59 minutes"
     assert format_registration_countdown(
         now + timedelta(minutes=60), "en", now
     ) == "🟡 Registration opens in 1 hour"
     assert format_registration_countdown(
         now + timedelta(hours=1, minutes=59, seconds=59), "en", now
-    ) == "🟡 Registration opens in 2 hours"
+    ) == "🟡 Registration opens in 1 hour"
 
 
-def test_countdown_rounds_up_ru():
+def test_countdown_rounds_down_ru():
     now = _utc(2026, 8, 16, 7, 0)
     assert format_registration_countdown(
         now + timedelta(minutes=29, seconds=59), "ru", now
-    ) == "🟡 Регистрация откроется через 30 минут"
+    ) == "🟡 Регистрация откроется через 29 минут"
     assert format_registration_countdown(
         now + timedelta(minutes=59, seconds=59), "ru", now
-    ) == "🟡 Регистрация откроется через 1 час"
+    ) == "🟡 Регистрация откроется через 59 минут"
     assert format_registration_countdown(
         now + timedelta(hours=1, minutes=59, seconds=59), "ru", now
-    ) == "🟡 Регистрация откроется через 2 часа"
+    ) == "🟡 Регистрация откроется через 1 час"
 
 
-def test_countdown_hour_and_minutes_rounds_up_to_hours():
-    """1h30m should not understate: it is rounded up to the next hour."""
+def test_countdown_hour_and_minutes_rounds_down_to_hours():
+    """1h30m reads "1 hour": the site never inflates a wait to the next hour."""
     now = _utc(2026, 8, 16, 7, 0)
     assert format_registration_countdown(
         now + timedelta(hours=1, minutes=30), "en", now
-    ) == "🟡 Registration opens in 2 hours"
+    ) == "🟡 Registration opens in 1 hour"
     assert format_registration_countdown(
         now + timedelta(hours=1, minutes=30), "ru", now
-    ) == "🟡 Регистрация откроется через 2 часа"
+    ) == "🟡 Регистрация откроется через 1 час"
+
+
+def test_countdown_hour_floor_does_not_cross_day_boundary():
+    """23h59m stays in hours ("23 часа"), never rounded up to "1 день"."""
+    now = _utc(2026, 8, 16, 7, 0)
+    assert format_registration_countdown(
+        now + timedelta(hours=23, minutes=59), "ru", now
+    ) == "🟡 Регистрация откроется через 23 часа"
+    assert format_registration_countdown(
+        now + timedelta(hours=23, minutes=59), "en", now
+    ) == "🟡 Registration opens in 23 hours"
+    # Exactly a full day flips to the day band.
+    assert format_registration_countdown(
+        now + timedelta(days=1), "en", now
+    ) == "🟡 Registration opens in 1 day"
 
 
 def test_countdown_less_than_a_minute_rounds_to_one_minute():
@@ -282,7 +312,7 @@ def test_scheduled_card_shows_countdown():
         registration_start_at=datetime.now(timezone.utc) + timedelta(hours=5, minutes=30),
     )
     text = format_competition_card(comp, "ru")
-    assert "🟡 Регистрация откроется через 6 часов" in text
+    assert "🟡 Регистрация откроется через 5 часов" in text
 
 
 def test_scheduled_card_fallback_without_time():
