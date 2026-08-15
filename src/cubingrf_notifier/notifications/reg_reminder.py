@@ -167,6 +167,7 @@ async def send_registration_reminder(
                 comp,
                 language=user.language or "ru",
                 kind=KIND_REG_SOON,
+                countdown_at=target,
             )
             await notif_repo.mark_sent(user.id, comp.id, reg_reminder_kind(target))
             await sess.commit()

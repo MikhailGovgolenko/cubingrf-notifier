@@ -166,7 +166,7 @@ def _title_line(competition) -> str:
     return f'🏆 <b><a href="{_escape(competition.url)}">{name}</a></b>'
 
 
-def _registration_label(competition, language: str) -> str | None:
+def _registration_label(competition, language: str, countdown_at=None) -> str | None:
     reg_key = _REG_LABEL_KEYS.get(competition.reg_status or "")
     if not reg_key:
         return None
@@ -175,17 +175,18 @@ def _registration_label(competition, language: str) -> str | None:
         countdown = format_registration_countdown(
             getattr(competition, "registration_start_at", None),
             language,
+            now=countdown_at,
         )
         if countdown is not None:
             label = countdown
     return label
 
 
-def format_competition_card(competition, language: str = "ru") -> str:
+def format_competition_card(competition, language: str = "ru", countdown_at=None) -> str:
     """A competition card without any page header.
 
     Used on the competitions page (as a ``<p>`` block) and as the body of a
-    notification.     The card opens with a single line break before the title and closes with a
+    notification. The card opens with a single line break before the title and closes with a
     blank line; groups of fields are separated by blank lines
     (``<br/><br/>``)::
 
@@ -198,6 +199,12 @@ def format_competition_card(competition, language: str = "ru") -> str:
 
         🟢 Registration is open
         <br/><br/>
+
+    ``countdown_at`` is the instant the countdown is measured from. When
+    omitted (None) the real current time is used — this is the behaviour of
+    the /competitions page and stays untouched. Registration reminders pass
+    their *scheduled* delivery instant here so a few seconds of scheduler
+    delay never shave a minute off the displayed value.
     """
     title = _title_line(competition)
     date = get_text(
@@ -224,7 +231,7 @@ def format_competition_card(competition, language: str = "ru") -> str:
     if disc_line:
         groups.append([disc_line])
 
-    reg_label = _registration_label(competition, language)
+    reg_label = _registration_label(competition, language, countdown_at)
     if reg_label is not None:
         groups.append([reg_label])
 
@@ -279,7 +286,14 @@ def format_competition_notification(competition, language: str = "ru") -> str:
     return f"{header}\n<p>{format_competition_card(competition, language)}</p>"
 
 
-def format_registration_reminder(competition, language: str = "ru") -> str:
-    """Text for the "registration opens soon" reminder."""
+def format_registration_reminder(competition, language: str = "ru", countdown_at=None) -> str:
+    """Text for the "registration opens soon" reminder.
+
+    ``countdown_at`` (optional) is the scheduled delivery instant the countdown
+    should be measured from; when omitted the real current time is used. The
+    reminder sender passes the exact ``registration_start_at - interval``
+    instant so the message shows the full interval even when the scheduler
+    fires a few seconds late.
+    """
     header = _heading(get_text(language, "notifications.reg_soon"))
-    return f"{header}\n<p>{format_competition_card(competition, language)}</p>"
+    return f"{header}\n<p>{format_competition_card(competition, language, countdown_at=countdown_at)}</p>"

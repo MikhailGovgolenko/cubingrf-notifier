@@ -21,9 +21,10 @@ class TelegramNotifier:
         comp: Competition,
         language: str = "ru",
         kind: str = "new",
+        countdown_at=None,
     ) -> None:
         if kind == "reg_soon":
-            text = format_registration_reminder(comp, language)
+            text = format_registration_reminder(comp, language, countdown_at=countdown_at)
         else:
             text = format_competition_notification(comp, language)
         await self.bot.send_rich_message(

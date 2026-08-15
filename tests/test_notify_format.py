@@ -1,11 +1,14 @@
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
+import pytest
+
 from cubingrf_notifier.notifications.competition_formatter import (
     format_competition_card,
     format_competition_notification,
     format_date_range,
     format_registration_countdown,
+    format_registration_reminder,
 )
 from cubingrf_notifier.bot.competitions import _format_competition
 
@@ -320,3 +323,96 @@ def test_scheduled_card_fallback_without_time():
     text = format_competition_card(comp, "ru")
     assert "🟡 Регистрация скоро откроется" in text
     assert "через" not in text
+
+
+# ---------- registration-reminder countdown (scheduled instant) ----------
+
+def _scheduled_comp(start):
+    return _comp(
+        reg_status="scheduled",
+        registration_start_at=start,
+        date=datetime(2026, 11, 1),
+    )
+
+
+def test_reg_reminder_30_minutes_shows_full_interval_with_scheduler_delay():
+    """A 30-minute reminder must read "30 minutes" even when the scheduler
+    actually fired a few seconds late (regression for the 29-minutes bug)."""
+    start = _utc(2026, 8, 15, 5, 0)
+    target = start - timedelta(minutes=30)
+    comp = _scheduled_comp(start)
+
+    # What the buggy real-time calculation would produce at execution time:
+    late_now = target + timedelta(seconds=5)
+    assert format_registration_countdown(start, "en", late_now) == "🟡 Registration opens in 29 minutes"
+
+    # The reminder is measured from its scheduled instant, so the full
+    # interval is shown regardless of the few-second scheduler delay.
+    assert "Registration opens in 30 minutes" in format_registration_reminder(comp, "en", countdown_at=target)
+    assert "Регистрация откроется через 30 минут" in format_registration_reminder(comp, "ru", countdown_at=target)
+
+
+@pytest.mark.parametrize(
+    "interval_min, expected_en, expected_ru",
+    [
+        (10, "10 minutes", "10 минут"),
+        (30, "30 minutes", "30 минут"),
+        (60, "1 hour", "1 час"),
+        (180, "3 hours", "3 часа"),
+        (720, "12 hours", "12 часов"),
+        (1440, "1 day", "1 день"),
+    ],
+)
+def test_reg_reminder_countdown_shows_exact_interval(interval_min, expected_en, expected_ru):
+    start = _utc(2026, 8, 15, 5, 0)
+    target = start - timedelta(minutes=interval_min)
+    comp = _scheduled_comp(start)
+
+    text_en = format_registration_reminder(comp, "en", countdown_at=target)
+    assert f"Registration opens in {expected_en}" in text_en
+
+    text_ru = format_registration_reminder(comp, "ru", countdown_at=target)
+    assert f"Регистрация откроется через {expected_ru}" in text_ru
+
+
+def test_reg_reminder_delay_of_59_seconds_still_shows_full_interval():
+    start = _utc(2026, 8, 15, 5, 0)
+    target = start - timedelta(minutes=30)
+    comp = _scheduled_comp(start)
+
+    # Worst realistic in-grace delay (misfire_grace_time=60) still understates
+    # on the real-time path but the reminder keeps its scheduled value.
+    late_now = target + timedelta(seconds=59)
+    assert format_registration_countdown(start, "en", late_now) == "🟡 Registration opens in 29 minutes"
+    assert "Registration opens in 30 minutes" in format_registration_reminder(comp, "en", countdown_at=target)
+
+
+def test_competition_page_countdown_logic_unchanged_by_reminder_fix(monkeypatch):
+    """The /competitions page countdown is unchanged: it keeps measuring from
+    the real current time with floor rounding (matching cubingrf.org), while
+    only the reminder path is pinned to its scheduled instant."""
+    start = _utc(2026, 8, 15, 5, 0)
+    now = _utc(2026, 8, 14, 13, 35)  # 15h25m remaining, site shows "15 часов"
+
+    # Page calculation: floor-of-real-now is untouched.
+    assert format_registration_countdown(start, "ru", now) == "🟡 Регистрация откроется через 15 часов"
+
+    # Reminder path: measured from the scheduled instant -> full interval.
+    target = start - timedelta(minutes=30)
+    reminder = format_registration_reminder(_scheduled_comp(start), "ru", countdown_at=target)
+    assert "🟡 Регистрация откроется через 30 минут" in reminder
+
+    # The default page card (no countdown_at) still uses the real clock, not
+    # the reminder's scheduled instant.
+    class FakeDT(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return now if tz is None else now.astimezone(tz)
+
+    monkeypatch.setattr(
+        "cubingrf_notifier.notifications.competition_formatter.datetime",
+        FakeDT,
+    )
+    page_card = format_competition_card(_scheduled_comp(start), "ru")
+    assert "🟡 Регистрация откроется через 15 часов" in page_card
+    assert "30 минут" not in page_card
