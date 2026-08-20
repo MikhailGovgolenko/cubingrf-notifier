@@ -1,4 +1,5 @@
 import logging
+from html import escape
 
 from aiogram.types import CallbackQuery, Message
 
@@ -16,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 def _bullet_lines(items: list[str]) -> str:
-    return "<br/>".join(f"{BULLET} {item}" for item in items)
+    return "<br/>".join(f"{BULLET} {escape(item, quote=True)}" for item in items)
 
 
 def _regions_block(region_keys: list[str], language: str) -> str:

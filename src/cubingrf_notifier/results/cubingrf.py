@@ -10,9 +10,9 @@ import logging
 import re
 from typing import Optional, Tuple
 
-import httpx
 from selectolax.parser import HTMLParser, Node
 
+from ..scrapers.http import fetch_text
 from .models import RoundResult, RoundRoster
 
 logger = logging.getLogger(__name__)
@@ -51,15 +51,7 @@ class CubingRFResultsScraper:
     # ------------------------------------------------------------------ http
 
     async def _get(self, path: str) -> Optional[str]:
-        url = f"{self._base}{path}"
-        try:
-            async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-                r = await client.get(url, headers={"User-Agent": self._USER_AGENT})
-                r.raise_for_status()
-                return r.text
-        except httpx.HTTPError as exc:
-            logger.exception("Failed to fetch %s: %s", url, exc)
-            return None
+        return await fetch_text(f"{self._base}{path}", user_agent=self._USER_AGENT)
 
     # --------------------------------------------------------- registrant map
 

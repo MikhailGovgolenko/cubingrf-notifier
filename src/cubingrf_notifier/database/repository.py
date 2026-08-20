@@ -24,7 +24,16 @@ class UserRepository:
             return existing
         user = User(telegram_id=telegram_id)
         self.session.add(user)
-        await self.session.flush()
+        try:
+            await self.session.flush()
+        except IntegrityError:
+            # Lost a race with a concurrent registration of the same telegram_id;
+            # the DB unique constraint is the authority. Re-read the winner.
+            await self.session.rollback()
+            existing = await self.get_user_by_telegram_id(telegram_id)
+            if existing:
+                return existing
+            raise
         return user
 
     async def register_user(
@@ -46,9 +55,15 @@ class UserRepository:
                 last_seen_at=func.now(),
             )
             self.session.add(user)
+            try:
+                await self.session.flush()
+            except IntegrityError:
+                # Concurrent /start for the same account: unique constraint wins.
+                await self.session.rollback()
+                user = await self.get_user_by_telegram_id(telegram_id)
         elif username and user.username != username:
             user.username = username
-        await self.session.flush()
+            await self.session.flush()
         return user
 
     async def get_user_by_telegram_id(self, telegram_id: int) -> Optional[User]:

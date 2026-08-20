@@ -64,8 +64,13 @@ async def cb_open_regions(callback: CallbackQuery):
 @router.callback_query(RegionCB.filter(F.action == "toggle"))
 async def cb_region_toggle(callback: CallbackQuery, callback_data: RegionCB):
     user_id = callback.from_user.id
-    current = set(await _load_selected(user_id))
     key = callback_data.key
+    # Guard against oversized forged callback data that would overflow the
+    # region_key column (String(128)).
+    if not key or len(key) > 128:
+        await callback.answer()
+        return
+    current = set(await _load_selected(user_id))
     if key in current:
         current.discard(key)
     else:

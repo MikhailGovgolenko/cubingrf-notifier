@@ -5,7 +5,7 @@ with plain objects. User settings are read either from explicit arguments
 (``user_region_keys`` / ``user_event_codes``) or from the ORM
 relationships (``user.regions`` / ``user.events``).
 """
-from typing import Iterable, List, Optional
+from typing import Iterable, List
 
 from ..competitions.regions import ALL_REGION_KEYS, region_key_from_location
 from ..competitions.disciplines import ALL_DISCIPLINE_CODES

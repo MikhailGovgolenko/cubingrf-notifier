@@ -4,7 +4,7 @@ from datetime import datetime
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
-from cubingrf_notifier.database.models import Base, User
+from cubingrf_notifier.database.models import Base
 from cubingrf_notifier.database.repository import UserRepository
 from cubingrf_notifier.competitions.regions import (
     REGION_LABELS,
@@ -95,7 +95,7 @@ def test_region_label_unknown_key_falls_back():
 
 async def test_save_and_read_regions(session):
     repo = UserRepository(session)
-    user = await repo.create_user(111)
+    await repo.create_user(111)
     await session.flush()
 
     await repo.set_user_regions(111, ["Москва", "Санкт-Петербург"])

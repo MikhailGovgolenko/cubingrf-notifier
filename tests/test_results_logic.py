@@ -1,4 +1,3 @@
-import pytest
 from datetime import datetime, timedelta, timezone
 
 from cubingrf_notifier.results.models import RoundResult, RoundSnapshot

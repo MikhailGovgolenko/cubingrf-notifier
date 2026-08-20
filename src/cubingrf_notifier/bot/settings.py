@@ -4,12 +4,9 @@ from aiogram import Router, F
 from aiogram.filters import Command
 from aiogram.types import Message, CallbackQuery
 
-from ..database.session import AsyncSessionLocal
-from ..database.repository import UserRepository
-from ..i18n import get_text
 from .keyboards import SettingsCB
 from .notify_settings import show_notifications_screen
-from .user_status import show_settings_screen, send_settings_screen
+from .user_status import send_settings_screen
 
 logger = logging.getLogger(__name__)
 

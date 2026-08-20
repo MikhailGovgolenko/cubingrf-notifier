@@ -1,6 +1,14 @@
-# VPS
-$VpsHost = "mikhail@146.103.104.170"
-$DbContainer = "cubingrf-notifier-db-1"
+# Infrastructure is supplied via environment variables so the tracked script
+# contains no host credentials. Example:
+#   $env:CUBINGRF_VPS_HOST = "user@1.2.3.4"
+#   $env:CUBINGRF_DB_CONTAINER = "cubingrf-notifier-db-1"
+$VpsHost = $env:CUBINGRF_VPS_HOST
+$DbContainer = if ($env:CUBINGRF_DB_CONTAINER) { $env:CUBINGRF_DB_CONTAINER } else { "cubingrf-notifier-db-1" }
+
+if ([string]::IsNullOrWhiteSpace($VpsHost)) {
+    Write-Error "CUBINGRF_VPS_HOST is not set. Set it to 'user@host' before running."
+    exit 1
+}
 
 $sqlStats = @"
 \pset tuples_only on

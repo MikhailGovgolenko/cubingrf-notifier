@@ -1,0 +1,17 @@
+# Build context exclusions: never ship secrets, caches, or VCS history into
+# the image, and keep the context small.
+.git
+.venv
+venv
+__pycache__
+*.pyc
+*.egg-info
+.pytest_cache
+*.db
+*.sqlite
+.env
+.env.*
+!.env.example
+stats.ps1
+test.db
+docker-compose*.yml

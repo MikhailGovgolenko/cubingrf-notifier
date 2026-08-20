@@ -1,0 +1,12 @@
+# Development override. Local-only credentials so `docker compose -f
+# docker-compose.yml -f docker-compose.dev.yml up` works without exporting
+# POSTGRES_PASSWORD. Never use these defaults on a real deployment.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+services:
+  db:
+    environment:
+      POSTGRES_USER: cubingrf
+      POSTGRES_PASSWORD: devpassword
+      POSTGRES_DB: cubingrf

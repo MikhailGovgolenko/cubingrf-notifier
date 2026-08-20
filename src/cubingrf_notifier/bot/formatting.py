@@ -4,14 +4,20 @@ All pickers render as Telegram Rich Messages, where a literal ``\\n`` collapses
 and line breaks are produced with ``<br/>``.
 """
 
+from html import escape
 from typing import Iterable
 
 BULLET = "•"
 
 
+def _esc(value: str) -> str:
+    """Escape untrusted text (user-selected codes/keys) for rich-message HTML."""
+    return escape(value, quote=True)
+
+
 def bullet_lines(items: Iterable[str]) -> str:
     """Render items one per pushed line, each prefixed with a bullet."""
-    return "<br/>".join(f"{BULLET} {item}" for item in items)
+    return "<br/>".join(f"{BULLET} {_esc(item)}" for item in items)
 
 
 def status_section(label: str, items: Iterable[str], all_text: str) -> str:

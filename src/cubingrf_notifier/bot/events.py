@@ -68,8 +68,13 @@ async def cb_open_events(callback: CallbackQuery):
 @router.callback_query(EventCB.filter(F.action == "toggle"))
 async def cb_toggle(callback: CallbackQuery, callback_data: EventCB):
     user_id = callback.from_user.id
-    current = set(await _load_selected(user_id))
     code = callback_data.code
+    # Guard against oversized forged callback data that would overflow the
+    # event_code column (String(20)); valid codes are short.
+    if not code or len(code) > 20:
+        await callback.answer()
+        return
+    current = set(await _load_selected(user_id))
     if code in current:
         current.discard(code)
     else:

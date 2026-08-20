@@ -10,7 +10,7 @@ Note: a literal ``\\n`` collapses in Rich Message HTML, so every line break
 between fields is rendered with ``<br/>``.
 """
 from datetime import datetime, timedelta, timezone
-from typing import List, Optional
+from typing import List
 from html import escape
 
 from ..competitions.disciplines import discipline_short_label, sort_discipline_codes

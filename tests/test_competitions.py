@@ -13,7 +13,6 @@ from cubingrf_notifier.notifications.competition_formatter import (
     format_competitions_page,
 )
 from cubingrf_notifier.bot.keyboards import competitions_keyboard
-from cubingrf_notifier.competitions.disciplines import ALL_DISCIPLINE_CODES
 
 
 def _comp(

@@ -204,7 +204,7 @@ async def test_mark_seen_updates_last_seen_at(session):
     repo = UserRepository(session)
     await repo.register_user(111, username="alex", language_code="en")
     await session.flush()
-    first = (await repo.get_user_by_telegram_id(111)).last_seen_at
+    await repo.get_user_by_telegram_id(111)
     assert await repo.mark_seen(111, "alex") is True
     assert (await repo.get_user_by_telegram_id(111)).last_seen_at is not None
 

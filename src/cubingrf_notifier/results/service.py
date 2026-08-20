@@ -1,7 +1,6 @@
 """Orchestrates round-result polling: discovery, polling and notification."""
 from __future__ import annotations
 
-import asyncio
 import logging
 from datetime import datetime, timezone
 from typing import Optional
@@ -22,7 +21,6 @@ from .logic import (
     hash_snapshot,
     should_poll,
 )
-from .models import RoundSnapshot
 
 logger = logging.getLogger(__name__)
 

@@ -8,11 +8,10 @@ from cubingrf_notifier.bot.keyboards import (
     notifications_keyboard,
     reminder_intervals_keyboard,
 )
-from cubingrf_notifier.competitions.disciplines import DISCIPLINES, ALL_DISCIPLINE_CODES
+from cubingrf_notifier.competitions.disciplines import DISCIPLINES
 from cubingrf_notifier.competitions.regions import ALL_REGION_KEYS
 from cubingrf_notifier.i18n import get_text
 from cubingrf_notifier.notifications.competition_formatter import CARD_SEPARATOR
-from cubingrf_notifier.notifications.reminder_intervals import REMINDER_INTERVALS
 
 
 def _user(announcements=True, registrations=True, events=(), regions=()):

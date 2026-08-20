@@ -3,7 +3,6 @@ from typing import List, Optional
 from urllib.parse import urlparse
 
 import asyncio
-import httpx
 import logging
 import re
 
@@ -11,6 +10,7 @@ from selectolax.parser import HTMLParser
 
 from ..competitions.models import CompetitionDTO
 from .base import CompetitionSource
+from .http import fetch_text
 
 logger = logging.getLogger(__name__)
 
@@ -252,14 +252,7 @@ class CubingRFHtmlScraper(CompetitionSource):
 
     async def _get_page(self, url: str) -> Optional[str]:
         """Fetch page HTML; return None on any error instead of raising."""
-        try:
-            async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
-                r = await client.get(url, headers={"User-Agent": "cubingrf-notifier/0.1"})
-                r.raise_for_status()
-                return r.text
-        except httpx.HTTPError as exc:
-            logger.exception("Failed to fetch %s: %s", url, exc)
-            return None
+        return await fetch_text(url)
 
     def _select_cards(self, tree: HTMLParser) -> List:
         """Pick competition cards from the active (current year) tab.

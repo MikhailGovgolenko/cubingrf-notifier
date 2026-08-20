@@ -199,8 +199,9 @@ async def msg_set_rsf(message: Message, state: FSMContext):
     """Capture the typed RSF ID and save it."""
     user_id = message.from_user.id
     raw = (message.text or "").strip()
-    # Accept only letters + digits (typical RSF ids like "AS03").
-    rsf = "".join(ch for ch in raw.upper() if ch.isalnum()) if raw else ""
+    # Accept only letters + digits (typical RSF ids like "AS03"), capped at the
+    # column limit (String(32)) so oversized input cannot overflow it.
+    rsf = "".join(ch for ch in raw.upper() if ch.isalnum())[:32] if raw else ""
     rsf = rsf or None
     async with AsyncSessionLocal() as sess:
         repo = UserRepository(sess)
