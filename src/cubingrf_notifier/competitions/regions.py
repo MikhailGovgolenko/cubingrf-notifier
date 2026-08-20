@@ -6,46 +6,59 @@ Oblast are two distinct selectable regions; existing users who chose "Москв
 are migrated to have both (see the 0009 migration).
 """
 
-# Canonical region keys (what the user selects and what is stored in user_regions).
-REGIONS: list[tuple[str, str]] = [
-    ("Москва", "Москва"),
-    ("Московская область", "Московская область"),
-    ("Санкт-Петербург", "Санкт-Петербург"),
-    ("Новосибирская область", "Новосибирская область"),
-    ("Приморский край", "Приморский край"),
-    ("Красноярский край", "Красноярский край"),
-    ("Краснодарский край", "Краснодарский край"),
-    ("Свердловская область", "Свердловская область"),
-    ("Нижегородская область", "Нижегородская область"),
-    ("Республика Бурятия", "Республика Бурятия"),
-    ("Ставропольский край", "Ставропольский край"),
-    ("Пермский край", "Пермский край"),
-    ("Республика Башкортостан", "Республика Башкортостан"),
-    ("Ленинградская область", "Ленинградская область"),
-    ("Мурманская область", "Мурманская область"),
-    ("Республика Татарстан", "Республика Татарстан"),
-    ("Тюменская область", "Тюменская область"),
-    ("Саратовская область", "Саратовская область"),
-    ("Самарская область", "Самарская область"),
-    ("Ивановская область", "Ивановская область"),
-    ("Республика Карелия", "Республика Карелия"),
-    ("Алтайский край", "Алтайский край"),
-    ("Челябинская область", "Челябинская область"),
-    ("Республика Марий Эл", "Республика Марий Эл"),
-    ("Омская область", "Омская область"),
-    ("Республика Коми", "Республика Коми"),
+# Canonical region keys (what the user selects and what is stored in
+# user_regions). Each entry is (key, Russian label, English label).
+REGIONS: list[tuple[str, str, str]] = [
+    ("Москва", "Москва", "Moscow"),
+    ("Московская область", "Московская область", "Moscow Oblast"),
+    ("Санкт-Петербург", "Санкт-Петербург", "Saint Petersburg"),
+    ("Новосибирская область", "Новосибирская область", "Novosibirsk Oblast"),
+    ("Приморский край", "Приморский край", "Primorsky Krai"),
+    ("Красноярский край", "Красноярский край", "Krasnoyarsk Krai"),
+    ("Краснодарский край", "Краснодарский край", "Krasnodar Krai"),
+    ("Свердловская область", "Свердловская область", "Sverdlovsk Oblast"),
+    ("Нижегородская область", "Нижегородская область", "Nizhny Novgorod Oblast"),
+    ("Республика Бурятия", "Республика Бурятия", "Republic of Buryatia"),
+    ("Ставропольский край", "Ставропольский край", "Stavropol Krai"),
+    ("Пермский край", "Пермский край", "Perm Krai"),
+    ("Республика Башкортостан", "Республика Башкортостан", "Republic of Bashkortostan"),
+    ("Ленинградская область", "Ленинградская область", "Leningrad Oblast"),
+    ("Мурманская область", "Мурманская область", "Murmansk Oblast"),
+    ("Республика Татарстан", "Республика Татарстан", "Republic of Tatarstan"),
+    ("Тюменская область", "Тюменская область", "Tyumen Oblast"),
+    ("Саратовская область", "Саратовская область", "Saratov Oblast"),
+    ("Самарская область", "Самарская область", "Samara Oblast"),
+    ("Ивановская область", "Ивановская область", "Ivanovo Oblast"),
+    ("Республика Карелия", "Республика Карелия", "Republic of Karelia"),
+    ("Алтайский край", "Алтайский край", "Altai Krai"),
+    ("Челябинская область", "Челябинская область", "Chelyabinsk Oblast"),
+    ("Республика Марий Эл", "Республика Марий Эл", "Mari El Republic"),
+    ("Омская область", "Омская область", "Omsk Oblast"),
+    ("Республика Коми", "Республика Коми", "Komi Republic"),
 ]
 
-REGION_LABELS: dict[str, str] = dict(REGIONS)
+# Russian labels (key -> label). Keys are the Russian region names, so the
+# Russian label equals the key itself.
+REGION_LABELS: dict[str, str] = {key: ru for key, ru, _ in REGIONS}
 
-ALL_REGION_KEYS: list[str] = [key for key, _ in REGIONS]
+# English labels (key -> label).
+REGION_LABELS_EN: dict[str, str] = {key: en for key, _, en in REGIONS}
 
-_REGION_ORDER: dict[str, int] = {key: i for i, (key, _) in enumerate(REGIONS)}
+ALL_REGION_KEYS: list[str] = [key for key, _, _ in REGIONS]
+
+_REGION_ORDER: dict[str, int] = {key: i for i, (key, _, _) in enumerate(REGIONS)}
 
 
 def sort_region_keys(keys) -> list[str]:
     """Order region keys by the canonical catalog order (unknowns last)."""
     return sorted(keys, key=lambda k: _REGION_ORDER.get(k, len(_REGION_ORDER)))
+
+
+def region_label(key: str, language: str = "ru") -> str:
+    """Localized label for a region key (English for the en interface)."""
+    if language == "en":
+        return REGION_LABELS_EN.get(key, REGION_LABELS.get(key, key))
+    return REGION_LABELS.get(key, key)
 
 # Location prefixes (from Competition.location) that map onto a canonical region.
 # Moscow and Moscow Oblast are two distinct regions.
@@ -56,7 +69,7 @@ _REGION_PREFIXES: dict[str, str] = {
 
 # Everything outside the known catalog is left as-is so unknown regions can be
 # added later without breaking existing selections.
-_REGION_PREFIXES.update({label: key for key, label in REGIONS})
+_REGION_PREFIXES.update({ru: key for key, ru, _ in REGIONS})
 
 
 def region_key_from_location(location: str | None) -> str | None:

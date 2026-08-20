@@ -5,7 +5,7 @@ from aiogram.types import CallbackQuery
 
 from ..database.session import AsyncSessionLocal
 from ..database.repository import UserRepository
-from ..competitions.regions import ALL_REGION_KEYS, sort_region_keys
+from ..competitions.regions import ALL_REGION_KEYS, sort_region_keys, region_label
 from ..i18n import get_text
 from .formatting import selection_screen_text
 from .keyboards import (
@@ -35,7 +35,7 @@ def _regions_text(selected: list[str], language: str = "ru") -> str:
     return selection_screen_text(
         get_text(language, "regions.title"),
         get_text(language, "regions.none"),
-        sort_region_keys(selected),
+        [region_label(k, language) for k in sort_region_keys(selected)],
     )
 
 

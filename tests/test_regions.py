@@ -6,9 +6,16 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
 from cubingrf_notifier.database.models import Base, User
 from cubingrf_notifier.database.repository import UserRepository
-from cubingrf_notifier.competitions.regions import REGION_LABELS, ALL_REGION_KEYS, region_key_from_location
+from cubingrf_notifier.competitions.regions import (
+    REGION_LABELS,
+    REGION_LABELS_EN,
+    ALL_REGION_KEYS,
+    region_key_from_location,
+    region_label,
+)
 from cubingrf_notifier.bot.competitions import filter_competitions
 from cubingrf_notifier.bot.keyboards import regions_keyboard
+from cubingrf_notifier.bot.regions import _regions_text
 
 
 @pytest.fixture
@@ -63,6 +70,25 @@ def test_all_region_keys_and_labels_match():
     assert len(ALL_REGION_KEYS) > 0
     for key in ALL_REGION_KEYS:
         assert REGION_LABELS[key] == key
+
+
+def test_all_regions_have_english_labels():
+    assert len(REGION_LABELS_EN) == len(ALL_REGION_KEYS)
+    for key in ALL_REGION_KEYS:
+        assert REGION_LABELS_EN[key]
+
+
+def test_region_label_ru_and_en():
+    assert region_label("Москва", "ru") == "Москва"
+    assert region_label("Москва", "en") == "Moscow"
+    assert region_label("Московская область", "en") == "Moscow Oblast"
+    assert region_label("Новосибирская область", "en") == "Novosibirsk Oblast"
+    assert region_label("Республика Татарстан", "en") == "Republic of Tatarstan"
+
+
+def test_region_label_unknown_key_falls_back():
+    assert region_label("Какой-то край", "en") == "Какой-то край"
+    assert region_label("Какой-то край", "ru") == "Какой-то край"
 
 
 # --- repository persistence ---
@@ -168,3 +194,39 @@ def test_regions_keyboard_bulk_actions_below_list():
     assert [btn.callback_data for btn in bulk] == ["region:all:", "region:clear:"]
     back_row = rows[len(ALL_REGION_KEYS) + 1]
     assert back_row[0].callback_data == "region:back:"
+
+
+def test_regions_keyboard_english_labels():
+    kb = regions_keyboard([], language="en")
+    buttons = [btn.text for row in kb.inline_keyboard for btn in row]
+    assert buttons[0] == "⬜ Moscow"
+    assert buttons[1] == "⬜ Moscow Oblast"
+    assert buttons[3] == "⬜ Novosibirsk Oblast"
+    assert "⬜ Санкт-Петербург" not in buttons
+
+
+def test_regions_keyboard_english_labels_keep_russian_keys_in_callback():
+    kb = regions_keyboard([], language="en")
+    rows = kb.inline_keyboard
+    assert rows[0][0].callback_data == "region:toggle:Москва"
+    assert rows[2][0].callback_data == "region:toggle:Санкт-Петербург"
+
+
+def test_regions_keyboard_russian_labels_by_default():
+    kb = regions_keyboard([], language="ru")
+    buttons = [btn.text for row in kb.inline_keyboard for btn in row]
+    assert buttons[0] == "⬜ Москва"
+    assert buttons[1] == "⬜ Московская область"
+
+
+def test_regions_screen_text_english():
+    text = _regions_text(["Москва", "Новосибирская область"], language="en")
+    assert "• Moscow" in text
+    assert "• Novosibirsk Oblast" in text
+    assert "Москва" not in text.split("Regions")[1] if "Regions" in text else True
+
+
+def test_regions_screen_text_russian():
+    text = _regions_text(["Москва"], language="ru")
+    assert "• Москва" in text
+    assert "Moscow" not in text

@@ -66,6 +66,17 @@ def test_settings_regions_list():
     assert "• Санкт-Петербург" in text
 
 
+def test_settings_regions_list_english():
+    text = format_settings_rich(
+        _user(regions=["Москва", "Санкт-Петербург", "Новосибирская область"]),
+        language="en",
+    )
+    assert "• Moscow" in text
+    assert "• Saint Petersburg" in text
+    assert "• Novosibirsk Oblast" in text
+    assert "• Москва" not in text
+
+
 def test_settings_rsf_id_is_separate_block():
     user = SimpleNamespace(
         announcements_enabled=True,

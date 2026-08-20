@@ -5,7 +5,7 @@ from aiogram.types import CallbackQuery, Message
 from ..database.session import AsyncSessionLocal
 from ..database.repository import UserRepository
 from ..competitions.disciplines import discipline_label, sort_discipline_codes, ALL_DISCIPLINE_CODES
-from ..competitions.regions import sort_region_keys, ALL_REGION_KEYS
+from ..competitions.regions import sort_region_keys, ALL_REGION_KEYS, region_label
 from ..i18n import DEFAULT_LANGUAGE, get_text
 from ..notifications.competition_formatter import CARD_SEPARATOR
 from .formatting import BULLET
@@ -22,7 +22,9 @@ def _bullet_lines(items: list[str]) -> str:
 def _regions_block(region_keys: list[str], language: str) -> str:
     if not region_keys or set(region_keys) >= set(ALL_REGION_KEYS):
         return get_text(language, "status.region_all")
-    return _bullet_lines(sort_region_keys(region_keys))
+    return _bullet_lines(
+        [region_label(k, language) for k in sort_region_keys(region_keys)]
+    )
 
 
 def _events_block(event_codes: list[str], language: str) -> str:

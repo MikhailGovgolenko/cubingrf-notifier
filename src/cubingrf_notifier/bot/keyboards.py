@@ -3,7 +3,7 @@ from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from ..competitions.disciplines import DISCIPLINES
-from ..competitions.regions import ALL_REGION_KEYS
+from ..competitions.regions import ALL_REGION_KEYS, region_label
 from ..i18n import get_text
 
 
@@ -209,10 +209,18 @@ def events_keyboard(selected_codes: list[str], language: str = "ru") -> InlineKe
 
 
 def regions_keyboard(selected_keys: list[str], language: str = "ru") -> InlineKeyboardMarkup:
-    """Region selection menu: vertical list, bulk actions and back below."""
+    """Region selection menu: vertical list, bulk actions and back below.
+
+    Button labels follow the user's interface language (Russian region names
+    for ru, English names for en).
+    """
     kb = InlineKeyboardBuilder()
-    _picker_rows(kb, [(k, k) for k in ALL_REGION_KEYS], set(selected_keys),
-                 lambda key: RegionCB(action="toggle", key=key))
+    _picker_rows(
+        kb,
+        [(k, region_label(k, language)) for k in ALL_REGION_KEYS],
+        set(selected_keys),
+        lambda key: RegionCB(action="toggle", key=key),
+    )
 
     kb.row(
         _btn(get_text(language, "regions.all"), RegionCB(action="all")),
