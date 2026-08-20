@@ -14,6 +14,7 @@ from typing import List, Optional
 from html import escape
 
 from ..competitions.disciplines import discipline_short_label, sort_discipline_codes
+from ..competitions.localization import localize_city
 from ..i18n import get_text
 
 # Separator block between cards (rendered as a rich-message <hr/>).
@@ -142,12 +143,16 @@ def format_date_range(
     return f"{format_date(start, language)} — {format_date(end, language)}"
 
 
-def short_location(location: str | None) -> str:
-    """Trim "Region, City" to just the city for a compact card."""
+def short_location(location: str | None, language: str = "ru") -> str:
+    """Trim "Region, City" to just the city for a compact card.
+
+    For English the city is localized (the site only provides Russian city
+    names); Russian and unknown languages keep the original city.
+    """
     if not location:
         return "-"
-    city = location.split(",", 1)[-1].strip()
-    return city or location
+    city = location.split(",", 1)[-1].strip() or location
+    return localize_city(city, language)
 
 
 def disciplines_line(codes: List[str], language: str) -> str | None:
@@ -158,9 +163,16 @@ def disciplines_line(codes: List[str], language: str) -> str | None:
     return f"{get_text(language, 'competitions.disciplines')} {' • '.join(labels)}"
 
 
-def _title_line(competition) -> str:
-    """Bold title; an HTML link to the page when a URL is available."""
-    name = _escape(competition.name or "")
+def _title_line(competition, language: str) -> str:
+    """Bold title; an HTML link to the page when a URL is available.
+
+    English users see the site's English name when it provides one; otherwise
+    the Russian name is the fallback.
+    """
+    name = competition.name or ""
+    if language == "en":
+        name = getattr(competition, "name_en", None) or name
+    name = _escape(name)
     if not getattr(competition, "url", None):
         return f"🏆 <b>{name}</b>"
     return f'🏆 <b><a href="{_escape(competition.url)}">{name}</a></b>'
@@ -206,7 +218,7 @@ def format_competition_card(competition, language: str = "ru", countdown_at=None
     their *scheduled* delivery instant here so a few seconds of scheduler
     delay never shave a minute off the displayed value.
     """
-    title = _title_line(competition)
+    title = _title_line(competition, language)
     date = get_text(
         language,
         "competitions.date",
@@ -219,7 +231,7 @@ def format_competition_card(competition, language: str = "ru", countdown_at=None
     location = get_text(
         language,
         "competitions.location",
-        location=short_location(competition.location),
+        location=short_location(competition.location, language),
     )
 
     groups = [

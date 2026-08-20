@@ -15,6 +15,7 @@ from cubingrf_notifier.bot.competitions import _format_competition
 
 def _comp(
     name="Moscow Open",
+    name_en=None,
     date=datetime(2026, 8, 7),
     end_date=None,
     location="Москва, Москва",
@@ -25,6 +26,7 @@ def _comp(
 ):
     return SimpleNamespace(
         name=name,
+        name_en=name_en,
         date=date,
         end_date=end_date,
         location=location,
@@ -55,7 +57,7 @@ def test_notification_en_all_fields():
     assert "🆕 New competition!" in text
     assert '<b><a href="https://cubingrf.org/competitions/1">Moscow Open</a></b>' in text
     assert "📅 7 August 2026" in text
-    assert "📍 Москва" in text
+    assert "📍 Moscow" in text
     assert "🧩 3x3 • 4x4" in text
     assert "🟢 Registration is open" in text
     assert "🔗 " not in text
@@ -161,6 +163,66 @@ def test_title_keeps_underscore_in_name():
 def test_title_link_used_in_notifications_too():
     text = format_competition_notification(_comp(), "ru")
     assert '<a href="https://cubingrf.org/competitions/1">Moscow Open</a>' in text
+
+
+# ---------- localized name and city by language ----------
+
+def test_en_uses_english_name_when_available():
+    comp = _comp(name="V этап Кубка России 2026", name_en="Russia Speedcubing Cup V 2026")
+    text = format_competition_notification(comp, "en")
+    assert "Russia Speedcubing Cup V 2026" in text
+    assert "V этап Кубка России 2026" not in text
+
+
+def test_en_falls_back_to_russian_name_without_name_en():
+    comp = _comp(name="SPB Muffin Tasting 2026", name_en=None)
+    text = format_competition_notification(comp, "en")
+    assert "SPB Muffin Tasting 2026" in text
+
+
+def test_ru_always_uses_russian_name_even_with_name_en():
+    comp = _comp(name="V этап Кубка России 2026", name_en="Russia Speedcubing Cup V 2026")
+    text = format_competition_notification(comp, "ru")
+    assert "V этап Кубка России 2026" in text
+    assert "Russia Speedcubing Cup V 2026" not in text
+
+
+def test_en_uses_english_name_in_reminder_too():
+    comp = _comp(
+        name="V этап Кубка России 2026",
+        name_en="Russia Speedcubing Cup V 2026",
+        reg_status="scheduled",
+        registration_start_at=datetime.now(timezone.utc) + timedelta(days=1),
+    )
+    text = format_registration_reminder(comp, "en", countdown_at=datetime.now(timezone.utc))
+    assert "Russia Speedcubing Cup V 2026" in text
+    assert "V этап Кубка России 2026" not in text
+
+
+def test_en_city_is_localized_on_card():
+    comp = _comp(location="Красноярский край, Красноярск")
+    text = format_competition_card(comp, "en")
+    assert "📍 Krasnoyarsk" in text
+    assert "Красноярск" not in text
+
+
+def test_en_city_uses_conventional_english_name():
+    comp = _comp(location="Москва, Москва")
+    text = format_competition_card(comp, "en")
+    assert "📍 Moscow" in text
+
+
+def test_ru_city_keeps_russian_name():
+    comp = _comp(location="Красноярский край, Красноярск")
+    text = format_competition_card(comp, "ru")
+    assert "📍 Красноярск" in text
+    assert "Krasnoyarsk" not in text
+
+
+def test_en_city_transliterates_unknown_city():
+    comp = _comp(location="Московская область, Мисайлово")
+    text = format_competition_card(comp, "en")
+    assert "📍 Misailovo" in text
 
 
 # ---------- registration countdown ----------

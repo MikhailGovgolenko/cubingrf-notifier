@@ -184,38 +184,71 @@ class CubingRFHtmlScraper(CompetitionSource):
             seen.add(dto.external_id)
             items.append(dto)
 
-        await self._enrich_registration_times(items)
+        await self._enrich_details(items)
 
         logger.info("Parsed %d competitions from %s", len(items), self._competitions_url)
         return items
 
-    async def _enrich_registration_times(self, items: List[CompetitionDTO]) -> None:
-        """Fill registration_start_at from each competition's detail page.
+    async def _enrich_details(self, items: List[CompetitionDTO]) -> None:
+        """Fill registration_start_at and name_en from detail pages.
 
-        Only competitions whose registration has not opened yet (status
-        'scheduled' or unknown) are enriched; a failed page fetch is skipped
-        silently so parsing never breaks.
+        Each competition's detail page is fetched exactly once and yields both
+        the registration-window text and the English competition name.
+        Registration start is parsed only for competitions whose registration
+        has not opened yet; the English name is read for every competition
+        that lacks one. A failed page fetch is skipped silently so parsing
+        never breaks.
         """
-        pending = [item for item in items if item.reg_status in (None, _SCHEDULED)]
+        pending = [
+            item
+            for item in items
+            if item.reg_status in (None, _SCHEDULED) or not item.name_en
+        ]
         if not pending:
             return
-        texts = await asyncio.gather(
-            *(self._fetch_registration_text(item.url) for item in pending)
-        )
-        for item, text in zip(pending, texts):
-            item.registration_start_at = parse_registration_start(text)
+        details = await asyncio.gather(*(self._fetch_details(item.url) for item in pending))
+        for item, (reg_text, name_en) in zip(pending, details):
+            if item.reg_status in (None, _SCHEDULED):
+                item.registration_start_at = parse_registration_start(reg_text)
+            if name_en:
+                item.name_en = name_en
 
-    async def _fetch_registration_text(self, url: str) -> str:
-        """Return the detail page's registration-window text, or '' on error."""
+    async def _fetch_details(self, url: str) -> tuple[str, Optional[str]]:
+        """Return (registration-window text, English name) from a detail page.
+
+        The English name sits in the first bare ``<div>`` of the page's second
+        "text-lg font-bold mb-4" block: the first such block holds the Russian
+        ``<h2>`` title plus status, the second holds the English title, the
+        dates and the city. Returns ('', None) on any error.
+        """
         html = await self._get_page(url)
         if html is None:
-            return ""
+            return "", None
         tree = HTMLParser(html)
+
+        reg_text = ""
         for el in tree.css("div"):
             text = (el.text() or "").strip()
             if text.startswith("Регистрация участников с") or text.startswith("Регистрация с"):
-                return text
-        return ""
+                reg_text = text
+                break
+
+        return reg_text, self._extract_english_name(tree)
+
+    @staticmethod
+    def _extract_english_name(tree: HTMLParser) -> Optional[str]:
+        """Read the English competition name from a detail page, or None."""
+        try:
+            for block in tree.css("div.text-lg.font-bold.mb-4"):
+                if block.css_first("h2") is not None:
+                    continue  # Russian title block (h2 + status), not the English one
+                for child in block.iter():
+                    if child.tag == "div":
+                        name = (child.text() or "").strip()
+                        return name or None
+        except Exception:
+            logger.exception("Failed to extract English name; skipping")
+        return None
 
     async def _get_page(self, url: str) -> Optional[str]:
         """Fetch page HTML; return None on any error instead of raising."""

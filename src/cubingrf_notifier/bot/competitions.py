@@ -42,8 +42,8 @@ def _format_date_range(
     return format_date_range(start, end, language)
 
 
-def _short_location(location: str | None) -> str:
-    return short_location(location)
+def _short_location(location: str | None, language: str = "ru") -> str:
+    return short_location(location, language)
 
 
 def _disciplines_line(codes: List[str], language: str) -> str | None:

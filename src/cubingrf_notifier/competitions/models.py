@@ -7,6 +7,7 @@ from typing import List, Optional
 class CompetitionDTO:
     external_id: str
     name: str
+    name_en: Optional[str] = None
     location: Optional[str] = None
     date: Optional[datetime] = None
     end_date: Optional[datetime] = None

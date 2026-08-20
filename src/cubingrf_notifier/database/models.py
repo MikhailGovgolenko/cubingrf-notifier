@@ -60,6 +60,9 @@ class Competition(Base):
     id = Column(Integer, primary_key=True)
     external_id = Column(String(255), unique=True, nullable=False)
     name = Column(String(512), nullable=False)
+    # The site's English competition name (taken from the detail page); NULL
+    # when the site does not provide one.
+    name_en = Column(String(512), nullable=True)
     location = Column(String(255), nullable=True)
     date = Column(DateTime(timezone=True), nullable=True)
     end_date = Column(DateTime(timezone=True), nullable=True)

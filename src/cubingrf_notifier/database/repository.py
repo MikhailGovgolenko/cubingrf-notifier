@@ -301,6 +301,7 @@ class CompetitionRepository:
         comp = Competition(
             external_id=dto.external_id,
             name=dto.name,
+            name_en=dto.name_en,
             location=dto.location,
             date=dto.date,
             end_date=dto.end_date,

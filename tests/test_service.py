@@ -30,10 +30,11 @@ class FakeSource:
         return list(self.dtos)
 
 
-def _dto(ext_id, reg_status):
+def _dto(ext_id, reg_status, name_en=None):
     return CompetitionDTO(
         external_id=ext_id,
         name=ext_id,
+        name_en=name_en,
         date=datetime(2026, 11, 1, tzinfo=timezone.utc),
         reg_status=reg_status,
     )
@@ -103,3 +104,39 @@ def test_mark_cancelled_once_ignores_existing_timestamp():
     comp = C()
     assert _mark_cancelled_once(comp, now=datetime(2026, 8, 14, tzinfo=timezone.utc)) is False
     assert comp.cancelled_at == datetime(2026, 8, 10, tzinfo=timezone.utc)
+
+
+async def test_new_competition_persists_name_en(session):
+    source = FakeSource([_dto("Cup", "scheduled", name_en="Russia Speedcubing Cup V 2026")])
+    service = CompetitionService(source, session)
+    new = await service.check_new_competitions()
+    await session.flush()
+    assert len(new) == 1
+    comp = await _get(session, "Cup")
+    assert comp.name_en == "Russia Speedcubing Cup V 2026"
+
+
+async def test_existing_competition_name_en_is_refreshed(session):
+    source = FakeSource([_dto("Cup", "open")])
+    service = CompetitionService(source, session)
+    await service.check_new_competitions()
+    await session.flush()
+    assert (await _get(session, "Cup")).name_en is None
+
+    source.dtos = [_dto("Cup", "open", name_en="Russia Speedcubing Cup V 2026")]
+    await service.check_new_competitions()
+    await session.flush()
+    assert (await _get(session, "Cup")).name_en == "Russia Speedcubing Cup V 2026"
+
+
+async def test_existing_competition_name_en_is_not_wiped(session):
+    source = FakeSource([_dto("Cup", "open", name_en="Russia Speedcubing Cup V 2026")])
+    service = CompetitionService(source, session)
+    await service.check_new_competitions()
+    await session.flush()
+
+    # A scrape that fails to provide the English name must not clear it.
+    source.dtos = [_dto("Cup", "open")]
+    await service.check_new_competitions()
+    await session.flush()
+    assert (await _get(session, "Cup")).name_en == "Russia Speedcubing Cup V 2026"

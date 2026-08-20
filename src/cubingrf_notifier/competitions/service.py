@@ -109,6 +109,14 @@ class CompetitionService:
                         existing.external_id,
                         dto.registration_start_at,
                     )
+                if dto.name_en and existing.name_en != dto.name_en:
+                    existing.name_en = dto.name_en
+                    logger.info(
+                        "Updated English name for %s (%s): %s",
+                        existing.name,
+                        existing.external_id,
+                        dto.name_en,
+                    )
                 continue
             try:
                 comp = await self.repo.add_competition(dto)
