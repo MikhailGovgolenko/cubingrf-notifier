@@ -52,6 +52,11 @@ _REG_START_RE = re.compile(
     r"Регистрация участников с\s+(\d{1,2})\s+([а-яё]+)\s+(\d{4})(?:\s+(\d{1,2}):(\d{2}))?",
     re.IGNORECASE,
 )
+# "по 17 октября 2026 23:59 (часовой пояс: МСК+0, ...)".
+_REG_END_RE = re.compile(
+    r"по\s+(\d{1,2})\s+([а-яё]+)\s+(\d{4})(?:\s+(\d{1,2}):(\d{2}))?",
+    re.IGNORECASE,
+)
 _MSK_OFFSET_RE = re.compile(r"МСК([+-]\d{1,2})", re.IGNORECASE)
 
 
@@ -66,6 +71,41 @@ def parse_registration_start(text: str) -> Optional[datetime]:
     if not text:
         return None
     match = _REG_START_RE.search(text)
+    if not match:
+        return None
+    month = RU_MONTHS.get(match.group(2).lower())
+    if not month:
+        return None
+    if not match.group(4):
+        return None
+    try:
+        offset = MSK_UTC_OFFSET
+        tz_match = _MSK_OFFSET_RE.search(text)
+        if tz_match:
+            offset += int(tz_match.group(1))
+        local = datetime(
+            int(match.group(3)),
+            month,
+            int(match.group(1)),
+            int(match.group(4)),
+            int(match.group(5)),
+            tzinfo=timezone(timedelta(hours=offset)),
+        )
+    except ValueError:
+        return None
+    return local.astimezone(timezone.utc)
+
+
+def parse_registration_end(text: str) -> Optional[datetime]:
+    """Parse the registration closing moment into a tz-aware UTC datetime.
+
+    Handles 'по 17 октября 2026 23:59 (часовой пояс: МСК+0, ...)' where the
+    clock time may be absent. Returns None when there is no match or when no
+    clock time is provided, never raises.
+    """
+    if not text:
+        return None
+    match = _REG_END_RE.search(text)
     if not match:
         return None
     month = RU_MONTHS.get(match.group(2).lower())
@@ -210,6 +250,7 @@ class CubingRFHtmlScraper(CompetitionSource):
         for item, (reg_text, name_en) in zip(pending, details):
             if item.reg_status in (None, _SCHEDULED):
                 item.registration_start_at = parse_registration_start(reg_text)
+                item.registration_end_at = parse_registration_end(reg_text)
             if name_en:
                 item.name_en = name_en
 

@@ -115,6 +115,46 @@ def format_registration_countdown(
     return get_text(language, "competitions.reg_opening_in", count=count, unit=unit)
 
 
+def format_registration_closing_countdown(
+    registration_end_at: datetime | None,
+    language: str = "ru",
+    now: datetime | None = None,
+) -> str | None:
+    """Localized "registration closes in N days/hours/minutes".
+
+    Returns None when there is no closing time, when it already passed, or
+    when the remaining time is zero — so no wrong/negative values are ever
+    emitted.
+    """
+    if registration_end_at is None:
+        return None
+    if now is None:
+        now = datetime.now(timezone.utc)
+    end = registration_end_at
+    if end.tzinfo is None:
+        end = end.replace(tzinfo=timezone.utc)
+    if now.tzinfo is None:
+        now = now.replace(tzinfo=timezone.utc)
+    remaining = end.astimezone(timezone.utc) - now.astimezone(timezone.utc)
+    if remaining <= timedelta(0):
+        return None
+
+    total_minutes = remaining.total_seconds() / 60
+    if total_minutes < 60:
+        count, key = max(1, int(total_minutes)), "minute"
+    elif total_minutes < 24 * 60:
+        count, key = max(1, int(total_minutes / 60)), "hour"
+    else:
+        count, key = max(1, int(total_minutes / (24 * 60))), "day"
+
+    if language == "ru":
+        unit = _ru_plural(count, _RU_UNITS[key])
+    else:
+        unit = _EN_UNITS[key] + ("" if count == 1 else "s")
+
+    return get_text(language, "competitions.reg_closing_in", count=count, unit=unit)
+
+
 def format_date(d: datetime | None, language: str = "ru") -> str:
     if d is None:
         return get_text(language, "unknown_date")
@@ -246,6 +286,14 @@ def format_competition_card(competition, language: str = "ru", countdown_at=None
     reg_label = _registration_label(competition, language, countdown_at)
     if reg_label is not None:
         groups.append([reg_label])
+
+    reg_closing = format_registration_closing_countdown(
+        getattr(competition, "registration_end_at", None),
+        language,
+        now=countdown_at,
+    )
+    if reg_closing is not None:
+        groups.append([reg_closing])
 
     parts = groups + [[]]
     return "<br/>" + "<br/><br/>".join("<br/>".join(group) for group in parts)

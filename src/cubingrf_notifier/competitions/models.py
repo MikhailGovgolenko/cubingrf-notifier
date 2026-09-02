@@ -17,3 +17,5 @@ class CompetitionDTO:
     reg_status: Optional[str] = None
     # When registration opens (tz-aware UTC, None if the site gives no time).
     registration_start_at: Optional[datetime] = None
+    # When registration closes (tz-aware UTC, None if the site gives no time).
+    registration_end_at: Optional[datetime] = None

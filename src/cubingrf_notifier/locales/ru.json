@@ -76,6 +76,7 @@
   "competitions.reg_open": "🟢 Идёт регистрация",
   "competitions.reg_scheduled": "🟡 Регистрация скоро откроется",
   "competitions.reg_opening_in": "🟡 Регистрация откроется через {count} {unit}",
+  "competitions.reg_closing_in": "⏰ Регистрация закроется через {count} {unit}",
   "competitions.reg_closed": "🔴 Регистрация закрыта",
   "competitions.reg_cancelled": "⛔ Соревнование отменено",
   "competitions.page": "{page}/{total}",

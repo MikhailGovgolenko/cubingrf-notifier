@@ -1,6 +1,6 @@
 from datetime import datetime, timezone
 
-from cubingrf_notifier.scrapers.cubingrf_html import parse_russian_date, parse_russian_date_range, parse_registration_start
+from cubingrf_notifier.scrapers.cubingrf_html import parse_russian_date, parse_russian_date_range, parse_registration_start, parse_registration_end
 
 
 def test_parse_single_date():
@@ -67,3 +67,31 @@ def test_parse_registration_start_garbage_returns_none():
     assert parse_registration_start("") is None
     assert parse_registration_start("совершенно не про регистрацию") is None
     assert parse_registration_start(None) is None
+
+
+def test_parse_registration_end_msk_zero():
+    text = (
+        "Регистрация участников с 16 августа 2026 10:00 по 3 ноября 2026 20:00 "
+        "(часовой пояс: МСК+0, московское время)."
+    )
+    assert parse_registration_end(text) == datetime(2026, 11, 3, 17, 0, tzinfo=timezone.utc)
+
+
+def test_parse_registration_end_msk_plus_four():
+    text = (
+        "Регистрация участников с 15 августа 2026 12:00 по 23 октября 2026 20:00 "
+        "(часовой пояс: МСК+4, красноярское время)."
+    )
+    # МСК+4 means UTC+7 (3 base + 4 offset), so 20:00 local = 13:00 UTC
+    assert parse_registration_end(text) == datetime(2026, 10, 23, 13, 0, tzinfo=timezone.utc)
+
+
+def test_parse_registration_end_no_time_returns_none():
+    text = "Регистрация участников с 16 августа 2026 по 3 ноября 2026 (часовой пояс: МСК+0)."
+    assert parse_registration_end(text) is None
+
+
+def test_parse_registration_end_garbage_returns_none():
+    assert parse_registration_end("") is None
+    assert parse_registration_end("совершенно не про регистрацию") is None
+    assert parse_registration_end(None) is None

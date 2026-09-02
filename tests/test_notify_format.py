@@ -8,6 +8,7 @@ from cubingrf_notifier.notifications.competition_formatter import (
     format_competition_notification,
     format_date_range,
     format_registration_countdown,
+    format_registration_closing_countdown,
     format_registration_reminder,
 )
 from cubingrf_notifier.bot.competitions import _format_competition
@@ -23,6 +24,7 @@ def _comp(
     reg_status="open",
     url="https://cubingrf.org/competitions/1",
     registration_start_at=None,
+    registration_end_at=None,
 ):
     return SimpleNamespace(
         name=name,
@@ -34,6 +36,7 @@ def _comp(
         reg_status=reg_status,
         url=url,
         registration_start_at=registration_start_at,
+        registration_end_at=registration_end_at,
     )
 
 
@@ -478,3 +481,61 @@ def test_competition_page_countdown_logic_unchanged_by_reminder_fix(monkeypatch)
     page_card = format_competition_card(_scheduled_comp(start), "ru")
     assert "🟡 Регистрация откроется через 15 часов" in page_card
     assert "30 минут" not in page_card
+
+
+# ---------- registration closing countdown ----------
+
+def test_closing_countdown_days_ru():
+    now = _utc(2026, 10, 10, 7, 0)
+    end = now + timedelta(days=7)
+    assert format_registration_closing_countdown(end, "ru", now) == "⏰ Регистрация закроется через 7 дней"
+
+
+def test_closing_countdown_days_en():
+    now = _utc(2026, 10, 10, 7, 0)
+    end = now + timedelta(days=3)
+    assert format_registration_closing_countdown(end, "en", now) == "⏰ Registration closes in 3 days"
+
+
+def test_closing_countdown_hours_ru():
+    now = _utc(2026, 10, 10, 7, 0)
+    end = now + timedelta(hours=5)
+    assert format_registration_closing_countdown(end, "ru", now) == "⏰ Регистрация закроется через 5 часов"
+
+
+def test_closing_countdown_minutes_ru():
+    now = _utc(2026, 10, 10, 7, 0)
+    end = now + timedelta(minutes=30)
+    assert format_registration_closing_countdown(end, "ru", now) == "⏰ Регистрация закроется через 30 минут"
+
+
+def test_closing_countdown_no_time_returns_none():
+    assert format_registration_closing_countdown(None, "ru") is None
+
+
+def test_closing_countdown_past_returns_none():
+    now = _utc(2026, 10, 10, 7, 0)
+    end = now - timedelta(days=1)
+    assert format_registration_closing_countdown(end, "ru", now) is None
+
+
+def test_open_card_shows_closing_countdown():
+    now = _utc(2026, 10, 10, 7, 0)
+    end = now + timedelta(days=5)
+    comp = _comp(reg_status="open", registration_end_at=end)
+    text = format_competition_card(comp, "ru", countdown_at=now)
+    assert "⏰ Регистрация закроется через 5 дней" in text
+
+
+def test_scheduled_card_with_both_opening_and_closing():
+    now = _utc(2026, 10, 10, 7, 0)
+    start = now + timedelta(days=2)
+    end = now + timedelta(days=30)
+    comp = _comp(
+        reg_status="scheduled",
+        registration_start_at=start,
+        registration_end_at=end,
+    )
+    text = format_competition_card(comp, "ru", countdown_at=now)
+    assert "🟡 Регистрация откроется через 2 дня" in text
+    assert "⏰ Регистрация закроется через 30 дней" in text
