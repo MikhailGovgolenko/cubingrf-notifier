@@ -56,6 +56,14 @@ def _start_at_differ(current, new) -> bool:
     return current.astimezone(timezone.utc) != new.astimezone(timezone.utc)
 
 
+def _end_at_differ(current, new) -> bool:
+    """True when the stored and freshly parsed registration end differ.
+
+    Same semantics as ``_start_at_differ`` (tz-aware instants in UTC).
+    """
+    return _start_at_differ(current, new)
+
+
 class CompetitionService:
     """Business logic for competitions. Decoupled from the data source."""
 
@@ -108,6 +116,14 @@ class CompetitionService:
                         existing.name,
                         existing.external_id,
                         dto.registration_start_at,
+                    )
+                if _end_at_differ(existing.registration_end_at, dto.registration_end_at):
+                    existing.registration_end_at = dto.registration_end_at
+                    logger.info(
+                        "Updated registration end for %s (%s): %s",
+                        existing.name,
+                        existing.external_id,
+                        dto.registration_end_at,
                     )
                 if dto.name_en and existing.name_en != dto.name_en:
                     existing.name_en = dto.name_en

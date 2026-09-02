@@ -140,3 +140,31 @@ async def test_existing_competition_name_en_is_not_wiped(session):
     await service.check_new_competitions()
     await session.flush()
     assert (await _get(session, "Cup")).name_en == "Russia Speedcubing Cup V 2026"
+
+
+async def test_new_competition_persists_registration_end(session):
+    dto = _dto("Halloween", "scheduled")
+    dto.registration_start_at = datetime(2026, 9, 3, 15, 0, tzinfo=timezone.utc)
+    dto.registration_end_at = datetime(2026, 10, 17, 20, 59, tzinfo=timezone.utc)
+    source = FakeSource([dto])
+    service = CompetitionService(source, session)
+    await service.check_new_competitions()
+    await session.flush()
+    comp = await _get(session, "Halloween")
+    # SQLite drops tzinfo; compare the UTC instant on the naive stored value.
+    assert comp.registration_end_at == dto.registration_end_at.replace(tzinfo=None)
+
+
+async def test_existing_competition_registration_end_is_refreshed(session):
+    source = FakeSource([_dto("Halloween", "scheduled")])
+    service = CompetitionService(source, session)
+    await service.check_new_competitions()
+    await session.flush()
+    assert (await _get(session, "Halloween")).registration_end_at is None
+
+    dto = _dto("Halloween", "scheduled")
+    dto.registration_end_at = datetime(2026, 10, 17, 20, 59, tzinfo=timezone.utc)
+    source.dtos = [dto]
+    await service.check_new_competitions()
+    await session.flush()
+    assert (await _get(session, "Halloween")).registration_end_at == dto.registration_end_at.replace(tzinfo=None)

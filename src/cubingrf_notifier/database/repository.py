@@ -324,6 +324,7 @@ class CompetitionRepository:
             disciplines=dto.disciplines or [],
             reg_status=dto.reg_status,
             registration_start_at=dto.registration_start_at,
+            registration_end_at=dto.registration_end_at,
         )
         self.session.add(comp)
         await self.session.flush()

@@ -70,6 +70,8 @@ class Competition(Base):
     reg_status = Column(String(20), nullable=True)
     # When registration opens (tz-aware UTC; None when the site gives no time).
     registration_start_at = Column(DateTime(timezone=True), nullable=True)
+    # When registration closes (tz-aware UTC; None when the site gives no time).
+    registration_end_at = Column(DateTime(timezone=True), nullable=True)
     # When the scraper first observed this competition as cancelled (tz-aware
     # UTC). Set exactly once; a cancelled competition stays visible to users
     # for 24 hours after this moment, then disappears. NULL means not (yet)
