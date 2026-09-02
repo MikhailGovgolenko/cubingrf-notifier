@@ -37,6 +37,12 @@ _RANGE_FULL_RE = re.compile(
     re.IGNORECASE,
 )
 
+# Cross-month range sharing one trailing year: "31 октября - 1 ноября 2026".
+_RANGE_SINGLE_YEAR_RE = re.compile(
+    r"(\d{1,2})\s+([а-яё]+)\s*(?:[–—-]|до)\s*(\d{1,2})\s+([а-яё]+)\s+(\d{4})",
+    re.IGNORECASE,
+)
+
 # Registration availability detected in a competition card's status text.
 _OPEN = "open"
 _SCHEDULED = "scheduled"
@@ -131,14 +137,54 @@ def parse_registration_end(text: str) -> Optional[datetime]:
     return local.astimezone(timezone.utc)
 
 
-def parse_russian_date(text: str) -> Optional[datetime]:
-    """Parse a Russian date like '22 августа 2026' into a datetime.
+def _parse_range(text: str) -> Optional[tuple[Optional[datetime], Optional[datetime]]]:
+    """Parse a Russian date range into (start, end), or None for no range.
 
-    For date ranges ('7 - 9 августа 2026') the start day is used.
-    Returns None when the string cannot be parsed (never raises).
+    Recognizes same-month ranges ('7 - 9 августа 2026'), cross-month ranges
+    sharing one trailing year ('31 октября - 1 ноября 2026') and full
+    cross-month/year ranges ('28 декабря 2026 - 3 января 2027'). Never raises.
     """
     if not text:
         return None
+
+    m = _RANGE_FULL_RE.search(text)
+    if m:
+        start = _build_date(int(m.group(1)), RU_MONTHS.get(m.group(2).lower()), int(m.group(3)))
+        end = _build_date(int(m.group(4)), RU_MONTHS.get(m.group(5).lower()), int(m.group(6)))
+        if start is not None and end is not None:
+            return start, end
+
+    m = _RANGE_SINGLE_YEAR_RE.search(text)
+    if m:
+        year = int(m.group(5))
+        start = _build_date(int(m.group(1)), RU_MONTHS.get(m.group(2).lower()), year)
+        end = _build_date(int(m.group(3)), RU_MONTHS.get(m.group(4).lower()), year)
+        if start is not None and end is not None:
+            return start, end
+
+    m = _RANGE_DAY_RE.search(text)
+    if m:
+        start = _build_date(int(m.group(1)), RU_MONTHS.get(m.group(3).lower()), int(m.group(4)))
+        if start is not None:
+            end = _build_date(int(m.group(2)), start.month, start.year)
+            if end is not None:
+                return start, end
+
+    return None
+
+
+def parse_russian_date(text: str) -> Optional[datetime]:
+    """Parse a Russian date like '22 августа 2026' into a datetime.
+
+    For date ranges ('7 - 9 августа 2026', '31 октября - 1 ноября 2026') the
+    start day is used. Returns None when the string cannot be parsed (never
+    raises).
+    """
+    if not text:
+        return None
+    rng = _parse_range(text)
+    if rng is not None:
+        return rng[0]
     match = _DATE_RE.search(text)
     if not match:
         return None
@@ -158,25 +204,19 @@ def parse_russian_date_range(text: str) -> tuple[Optional[datetime], Optional[da
     """Parse a Russian date range into (start, end) datetimes.
 
     Handles single dates ('22 августа 2026' -> end=None), same-month ranges
-    ('7 - 9 августа 2026') and cross-month/year ranges ('28 декабря 2026 -
-    3 января 2027'). Returns (None, None) when parsing fails (never raises).
+    ('7 - 9 августа 2026'), cross-month ranges sharing a trailing year
+    ('31 октября - 1 ноября 2026') and full cross-month/year ranges
+    ('28 декабря 2026 - 3 января 2027'). Returns (None, None) when parsing
+    fails (never raises).
     """
+    if not text:
+        return None, None
+    rng = _parse_range(text)
+    if rng is not None:
+        return rng
     start = parse_russian_date(text)
     if start is None:
         return None, None
-
-    m = _RANGE_FULL_RE.search(text)
-    if m:
-        end = _build_date(int(m.group(4)), RU_MONTHS.get(m.group(5).lower()), int(m.group(6)))
-        if end is not None:
-            return start, end
-
-    m = _RANGE_DAY_RE.search(text)
-    if m:
-        end = _build_date(int(m.group(2)), start.month, start.year)
-        if end is not None:
-            return start, end
-
     return start, None
 
 

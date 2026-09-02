@@ -31,6 +31,18 @@ def test_parse_cross_month_range():
     assert end == datetime(2027, 1, 3)
 
 
+def test_parse_cross_month_single_year_range():
+    """'31 октября - 1 ноября 2026' shares one trailing year.
+
+    Regression for Хэллоуин в Москве 2026: the bot previously read only the
+    second day ('1 ноября') as start with no end date.
+    """
+    start, end = parse_russian_date_range("31 октября - 1 ноября 2026")
+    assert start == datetime(2026, 10, 31)
+    assert end == datetime(2026, 11, 1)
+    assert parse_russian_date("31 октября - 1 ноября 2026") == datetime(2026, 10, 31)
+
+
 def test_parse_range_word_dо():
     start, end = parse_russian_date_range("28 декабря 2026 до 3 января 2027")
     assert start == datetime(2026, 12, 28)
