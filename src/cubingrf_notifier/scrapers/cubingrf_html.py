@@ -274,21 +274,21 @@ class CubingRFHtmlScraper(CompetitionSource):
 
         Each competition's detail page is fetched exactly once and yields both
         the registration-window text and the English competition name.
-        Registration start is parsed only for competitions whose registration
-        has not opened yet; the English name is read for every competition
-        that lacks one. A failed page fetch is skipped silently so parsing
-        never breaks.
+        Registration window (start and end) is parsed for competitions whose
+        registration is upcoming *or already open*; the English name is read
+        for every competition that lacks one. A failed page fetch is skipped
+        silently so parsing never breaks.
         """
         pending = [
             item
             for item in items
-            if item.reg_status in (None, _SCHEDULED) or not item.name_en
+            if item.reg_status in (None, _SCHEDULED, _OPEN) or not item.name_en
         ]
         if not pending:
             return
         details = await asyncio.gather(*(self._fetch_details(item.url) for item in pending))
         for item, (reg_text, name_en) in zip(pending, details):
-            if item.reg_status in (None, _SCHEDULED):
+            if item.reg_status in (None, _SCHEDULED, _OPEN):
                 item.registration_start_at = parse_registration_start(reg_text)
                 item.registration_end_at = parse_registration_end(reg_text)
             if name_en:

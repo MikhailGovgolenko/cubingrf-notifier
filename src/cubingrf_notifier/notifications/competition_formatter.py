@@ -171,15 +171,18 @@ def format_date_range(
 
     Single day:        "7 августа 2026"
     Same month range:  "4–6 декабря 2026"
-    Cross month/year:  "28 декабря 2026 — 3 января 2027"
+    Same year range:   "31 октября — 1 ноября 2026"
+    Cross year:        "28 декабря 2026 — 3 января 2027"
     """
     if start is None:
         return get_text(language, "unknown_date")
     if end is None or end <= start:
         return format_date(start, language)
+    months = _RU_MONTHS if language == "ru" else _EN_MONTHS
     if start.month == end.month and start.year == end.year:
-        months = _RU_MONTHS if language == "ru" else _EN_MONTHS
         return f"{start.day}–{end.day} {months[start.month]} {start.year}"
+    if start.year == end.year:
+        return f"{start.day} {months[start.month]} — {end.day} {months[end.month]} {start.year}"
     return f"{format_date(start, language)} — {format_date(end, language)}"
 
 

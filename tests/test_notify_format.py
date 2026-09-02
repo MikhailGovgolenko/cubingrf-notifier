@@ -131,6 +131,12 @@ def test_date_range_localized_both_langs():
     assert format_date_range(start, end, "en") == "28 December 2026 — 3 January 2027"
 
 
+def test_date_range_cross_month_same_year_omits_start_year():
+    start, end = datetime(2026, 10, 31), datetime(2026, 11, 1)
+    assert format_date_range(start, end, "ru") == "31 октября — 1 ноября 2026"
+    assert format_date_range(start, end, "en") == "31 October — 1 November 2026"
+
+
 # ---------- title link ----------
 
 def test_title_is_html_link():

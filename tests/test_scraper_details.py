@@ -125,7 +125,7 @@ async def test_enrich_details_sets_name_en_for_all_statuses(monkeypatch):
             return "Регистрация участников с 16 августа 2026 10:00 (часовой пояс: МСК+0)", "S 2026 EN"
         if "O" in url:
             return "", "O 2026 EN"
-        return "", None  # already localized: not fetched
+        return "", None  # English name already present; window is still refreshed
 
     calls = []
     real = _scraper()
@@ -140,6 +140,36 @@ async def test_enrich_details_sets_name_en_for_all_statuses(monkeypatch):
     assert scheduled.name_en == "S 2026 EN"
     assert open_comp.name_en == "O 2026 EN"
     assert already_localized.name_en == "L 2026 EN"
-    assert len(calls) == 2  # the already-localized competition is not re-fetched
+    # Open competitions are also fetched to refresh their registration window,
+    # so every competition here is fetched exactly once.
+    assert len(calls) == 3
     assert scheduled.registration_start_at == datetime(2026, 8, 16, 7, 0, tzinfo=timezone.utc)
     assert open_comp.registration_start_at is None
+
+
+@pytest.mark.asyncio
+async def test_enrich_details_parses_registration_end_for_open(monkeypatch):
+    """Open competitions must get their registration window parsed too, so the
+    card can still show '⏰ Регистрация закроется через N дней' while
+    registration is in progress."""
+    comp = CompetitionDTO(
+        external_id="O",
+        name="O 2026",
+        name_en="O 2026 EN",
+        url="https://cubingrf.org/competitions/O",
+        reg_status="open",
+    )
+
+    async def fake_fetch_details(url):
+        return (
+            "Регистрация участников с 23 августа 2026 18:00 по 30 октября 2026 23:59 "
+            "(часовой пояс: МСК+0, московское время)",
+            None,
+        )
+
+    real = _scraper()
+    monkeypatch.setattr(real, "_fetch_details", fake_fetch_details)
+    await real._enrich_details([comp])
+
+    assert comp.registration_start_at == datetime(2026, 8, 23, 15, 0, tzinfo=timezone.utc)
+    assert comp.registration_end_at == datetime(2026, 10, 30, 20, 59, tzinfo=timezone.utc)
