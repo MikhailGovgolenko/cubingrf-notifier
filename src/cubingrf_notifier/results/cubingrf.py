@@ -58,11 +58,13 @@ class CubingRFResultsScraper:
     def _person_paths(self, tree: HTMLParser) -> dict[str, int]:
         """Map ``/persons/{RSF}`` -> per-competition registrant id.
 
-        The competitors page renders one row per participant holding both a
-        ``/persons/{CODE}`` profile link and a ``ID: {numeric}`` token.
+        Site renders the competitors list as div rows (the row wrapper carries
+        the ``hover:bg-gray-200`` zebra marker) each holding both a
+        ``/persons/{CODE}`` profile link and an ``ID: {numeric}`` token.
+        Older layout used ``<tr>`` rows; both are supported.
         """
         mapping: dict[str, int] = {}
-        for row in tree.css("tr"):
+        for row in tree.css("tr, div[class*='hover:bg-gray-200']"):
             link = row.css_first('a[href*="/persons/"]')
             if link is None:
                 continue
@@ -90,18 +92,37 @@ class CubingRFResultsScraper:
     def _round_links(self, tree: HTMLParser) -> list[Tuple[str, int]]:
         """All ``(event_code, round_number)`` pairs selectable on the comp.
 
-        Read from the round picker that carries ``data-event`` / ``data-round``
-        attributes (present on both the results and groups pages).
+        The current site renders the round picker as a ``<select>`` whose
+        options carry ``data-link=".../results/{event}/{round}"`` (one per
+        (event, round) pair). An older layout carried ``data-event`` /
+        ``data-round`` attributes directly; both are supported here so a
+        layout regression can't silently break round discovery.
         """
         pairs: list[Tuple[str, int]] = []
+        seen: set[Tuple[str, int]] = set()
+
         for el in tree.css("[data-event][data-round]"):
             event = el.attributes.get("data-event", "")
             try:
                 rnd = int(el.attributes.get("data-round", ""))
             except ValueError:
                 continue
-            if event:
+            if event and (event, rnd) not in seen:
+                seen.add((event, rnd))
                 pairs.append((event, rnd))
+
+        # Newer markup: the rounded picker lives in a <select data-link=...>.
+        for el in tree.css("[data-link]"):
+            link = el.attributes.get("data-link", "")
+            m = re.search(r"/results/([^/?]+)/(\d+)(?:[?/]|$)", link)
+            if not m:
+                continue
+            event = m.group(1)
+            rnd = int(m.group(2))
+            if event and (event, rnd) not in seen:
+                seen.add((event, rnd))
+                pairs.append((event, rnd))
+
         return pairs
 
     async def get_round_pairs(self, competition_id: str) -> list[Tuple[str, int]]:
@@ -141,7 +162,11 @@ class CubingRFResultsScraper:
             attempts: list[int] = []
             for cell in entry.css("[data-raw-result]"):
                 raw = cell.attributes.get("data-raw-result", "").strip()
-                if not raw:
+                # Empty result cells are rendered as empty cells holding a bare
+                # data-raw-result="0" placeholder; they carry no attempt and must
+                # not be stored as a (0, ...) attempt. A real "0.00" could never
+                # parse to a raw value of exactly 0, so skip those too.
+                if not raw or raw == "0":
                     continue
                 try:
                     attempts.append(int(raw))
@@ -152,11 +177,20 @@ class CubingRFResultsScraper:
             valid = [a for a in attempts if a >= 0]
             best = min(valid) if valid else None
 
-            # Average text is in "seconds" form ("8.86"); convert to centiseconds.
+            # Average: the bold numeric span in the "average" cell. The cell
+            # also renders a bold Cyrillic label ("Среднее:") that carries the
+            # xl:hidden marker; the LABEL itself is not the number. So pick the
+            # first font-bold span whose text is NOT the label, i.e. the one
+            # without xl:hidden — that is the actual average text.
             average = None
-            avg_el = entry.css_first("span.font-bold")
-            if avg_el is not None:
-                average = _seconds_to_centis(avg_el.text() or "")
+            for avg_el in entry.css("span.font-bold"):
+                txt = (avg_el.text() or "").strip()
+                # skip the Cyrillic label; it contains no decimal
+                if "Сред" in txt or "Лучш" in txt:
+                    continue
+                average = _seconds_to_centis(txt)
+                if average is not None:
+                    break
 
             # Advanced-to-next-round marker.
             advanced = "bg-green-300" in (entry.attributes.get("class", "") or "")
@@ -190,14 +224,23 @@ class CubingRFResultsScraper:
 
     def _parse_roster(self, html: str) -> RoundRoster:
         tree = HTMLParser(html)
-        # The groups page lists every participant as a row that links to their
-        # profile via /persons/{RSF}. The roster count is all this page gives
-        # us unambiguously; it is what the completion heuristic needs.
-        count = 0
-        for row in tree.css("tr"):
-            if row.css_first('a[href*="/persons/"]') is not None:
-                count += 1
-        return RoundRoster(count=count)
+        # The groups page lists every participant once per group as a row that
+        # links to their profile via /persons/{RSF}. Current markup renders
+        # these rows as divs (no <tr>); older layout used <tr>. The roster we
+        # want is the set of DISTINCT participant codes on this round's groups
+        # page: that is what the results table is later compared against.
+        codes: set[str] = set()
+        # Collect the RSF code from EVERY /persons/ link on the page and count
+        # distinct codes. A competitor is often listed once per group (and can
+        # appear in several groups), so raw link count would over-count; the
+        # results table we compare against is keyed on the same distinct RSF
+        # codes, so distinct is the value that makes the two match.
+        for link in tree.css('a[href*="/persons/"]'):
+            href = link.attributes.get("href", "")
+            rsf = href.rstrip("/").rsplit("/", 1)[-1]
+            if rsf:
+                codes.add(rsf)
+        return RoundRoster(count=len(codes))
 
     async def fetch_round_roster(
         self,
