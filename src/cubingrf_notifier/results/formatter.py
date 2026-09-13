@@ -14,11 +14,13 @@ def format_time(centis: int | None, language: str = "ru") -> str:
     Under a minute a time renders as ``SS.CC`` (e.g. '36.07'). From one
     minute up, in the speedcubing convention: ``M:SS.CC`` with zero-padded
     seconds (e.g. '1:46.13', '1:06.13'). From one hour up, ``H:MM:SS.CC``.
-    DNF (-1) -> 'DNF'. None -> '-'."""
+    DNF (-1) -> 'DNF'. DNS (-2) -> 'DNS'. None -> '-'."""
     if centis is None:
         return "-"
-    if centis < 0:
+    if centis == -1:
         return "DNF"
+    if centis == -2:
+        return "DNS"
     total_seconds, remaining = divmod(centis, 100)
     seconds = total_seconds % 60
     minutes = (total_seconds // 60) % 60

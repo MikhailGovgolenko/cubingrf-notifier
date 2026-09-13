@@ -19,17 +19,44 @@ logger = logging.getLogger(__name__)
 
 
 def _seconds_to_centis(text: str) -> Optional[int]:
-    """Convert a displayed time like '8.86' (seconds) to centiseconds.
+    """Convert a displayed time to centiseconds.
 
-    Accepts an optional leading minus for DNF-style values; returns None when
-    the text is not a decimal number.
+    Accepts ``SS.CC`` (e.g. '8.86'), ``M:SS.CC`` (e.g. '1:38.25') and
+    ``H:MM:SS.CC`` spellings, plus the DNF/DNS tokens the site uses in
+    result cells. DNF/DNS map to -1/-2, matching the raw result
+    conventions. Returns None when the text is none of those.
     """
-    m = re.match(r"\s*(-?\d+)(?:\.(\d{1,2}))?\s*$", text)
-    if not m:
+    token = (text or "").strip()
+    if not token:
         return None
-    whole = int(m.group(1))
-    frac = (m.group(2) or "")[:2].ljust(2, "0")
-    return whole * 100 + int(frac)
+    upper = token.upper()
+    if upper == "DNF":
+        return -1
+    if upper == "DNS":
+        return -2
+    whole, dot, frac = token.partition(".")
+    total_parts = [p for p in whole.split(":") if p]
+    if dot:
+        if not frac or not frac.isdigit() or len(frac) > 2:
+            return None
+    else:
+        frac = "00"
+    if not total_parts or any(not p.isdigit() for p in total_parts):
+        return None
+    nums = [int(p) for p in total_parts]
+    if len(nums) == 1:
+        total_seconds = nums[0]
+    elif len(nums) == 2:
+        if nums[1] >= 60:
+            return None
+        total_seconds = nums[0] * 60 + nums[1]
+    elif len(nums) == 3:
+        if nums[1] >= 60 or nums[2] >= 60:
+            return None
+        total_seconds = nums[0] * 3600 + nums[1] * 60 + nums[2]
+    else:
+        return None
+    return total_seconds * 100 + int(frac[:2].ljust(2, "0"))
 
 
 class CubingRFResultsScraper:

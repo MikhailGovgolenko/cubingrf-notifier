@@ -47,6 +47,55 @@ def test_parse_results_extracts_fields():
     assert second.best == 900  # DNF (-1) ignored for best
 
 
+MINUTE_AVG_PAGE = """
+<html><body>
+<div class="result-entry" data-registrant-id="12">
+  <div class="w-fit mr-2 xl:w-12 xl:mr-0"><b>14</b></div>
+  <a href="/results/persons/12">Name</a>
+  <div data-attempt-number="1" data-raw-result="10613">1:46.13</div>
+  <div data-attempt-number="2" data-raw-result="11056">1:50.56</div>
+  <div data-attempt-number="3" data-raw-result="9236">1:32.36</div>
+  <div data-attempt-number="4" data-raw-result="8869">1:28.69</div>
+  <div data-attempt-number="5" data-raw-result="9626">1:36.26</div>
+  <span class="font-bold">1:38.25</span>
+</div>
+</body></html>
+"""
+
+
+def test_parse_average_over_one_minute():
+    results = CubingRFResultsScraper()._parse_results(MINUTE_AVG_PAGE)
+    assert len(results) == 1
+    # Average >= 1 minute is spelled on the page as 'M:SS.CC'; it must parse
+    # to centiseconds just like the under-a-minute 'SS.CC' spelling.
+    assert results[0].average == 9825
+
+
+DNF_AVG_PAGE = """
+<html><body>
+<div class="result-entry" data-registrant-id="40">
+  <div class="w-fit mr-2 xl:w-12 xl:mr-0"><b>16</b></div>
+  <a href="/results/persons/40">Name</a>
+  <div data-attempt-number="1" data-raw-result="-1">DNF</div>
+  <div data-attempt-number="2" data-raw-result="-1">DNF</div>
+  <div data-attempt-number="3" data-raw-result="-2">DNS</div>
+  <div data-attempt-number="4" data-raw-result="8785">1:27.85</div>
+  <div data-attempt-number="5" data-raw-result="9504">1:35.04</div>
+  <span class="font-bold">DNF</span>
+</div>
+</body></html>
+"""
+
+
+def test_parse_average_dnf_token():
+    results = CubingRFResultsScraper()._parse_results(DNF_AVG_PAGE)
+    assert len(results) == 1
+    # A DNF average is spelled as the plain token 'DNF'; it stays DNF (-1)
+    # rather than being dropped (which used to hide the "average" line).
+    assert results[0].average == -1
+    assert results[0].best == 8785  # non-DNF/DNS attempts only
+
+
 COMPETITORS_PAGE = """
 <html><body>
 <table>

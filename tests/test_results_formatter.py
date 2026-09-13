@@ -14,6 +14,10 @@ def test_format_time_dnf():
     assert format_time(-1, "en") == "DNF"
 
 
+def test_format_time_dns():
+    assert format_time(-2, "en") == "DNS"
+
+
 def test_format_time_none():
     assert format_time(None, "en") == "-"
 
@@ -119,6 +123,42 @@ def test_format_round_result_layout_blank_lines():
     assert "7.99<br/><br/>🏆 вы прошли" in text
     # …but attempts and the stats line share one block (single <br/>, no blank).
     assert "8.10<br/>Среднее:" in text
+
+
+def test_format_round_result_over_minute_average_included():
+    snap = RoundSnapshot(
+        place=14,
+        attempts=(10613, 11056, 9236, 8869, 9626),
+        average=9825,
+        best=8869,
+        advanced=False,
+    )
+    text = format_round_result(
+        "SPB Muffin 2026",
+        "https://cubingrf.org/competitions/SPBMuffin2026",
+        "555",
+        2,
+        snap,
+        language="ru",
+    )
+    # The average >= 1 minute must be rendered (and in M:SS.CC form), not
+    # silently dropped — this was the original "no average line" bug.
+    assert "Попытки: 1:46.13, 1:50.56, 1:32.36, 1:28.69, 1:36.26" in text
+    assert "Среднее: 1:38.25" in text
+    assert "Лучшее: 1:28.69" in text
+
+
+def test_format_round_result_dnf_average_shown():
+    snap = RoundSnapshot(
+        place=16,
+        attempts=(-1, -1, -2, 8785, 9504),
+        average=-1,
+        best=8785,
+        advanced=False,
+    )
+    text = format_round_result("Comp", None, "555", 2, snap, language="en")
+    assert "Average: DNF" in text
+    assert "DNF, DNF, DNS, 1:27.85" in text
 
 
 def test_format_round_result_edited_title():
