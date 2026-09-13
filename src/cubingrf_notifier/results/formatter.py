@@ -9,12 +9,24 @@ from .models import RoundSnapshot
 
 
 def format_time(centis: int | None, language: str = "ru") -> str:
-    """Centiseconds -> '13.45'. DNF (-1) -> 'DNF'. None -> '-'."""
+    """Centiseconds -> '13.45'; 'M:SS.CC' once at least a minute long.
+
+    Under a minute a time renders as ``SS.CC`` (e.g. '36.07'). From one
+    minute up, in the speedcubing convention: ``M:SS.CC`` with zero-padded
+    seconds (e.g. '1:46.13', '1:06.13'). From one hour up, ``H:MM:SS.CC``.
+    DNF (-1) -> 'DNF'. None -> '-'."""
     if centis is None:
         return "-"
     if centis < 0:
         return "DNF"
-    seconds, remaining = divmod(centis, 100)
+    total_seconds, remaining = divmod(centis, 100)
+    seconds = total_seconds % 60
+    minutes = (total_seconds // 60) % 60
+    hours = total_seconds // 3600
+    if hours:
+        return f"{hours}:{minutes:02d}:{seconds:02d}.{remaining:02d}"
+    if total_seconds >= 60:
+        return f"{minutes}:{seconds:02d}.{remaining:02d}"
     return f"{seconds}.{remaining:02d}"
 
 

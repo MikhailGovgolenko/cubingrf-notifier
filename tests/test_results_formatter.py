@@ -18,6 +18,38 @@ def test_format_time_none():
     assert format_time(None, "en") == "-"
 
 
+def test_format_time_zero():
+    assert format_time(0, "en") == "0.00"
+
+
+def test_format_time_just_below_minute():
+    assert format_time(5999, "en") == "59.99"
+
+
+def test_format_time_exactly_one_minute():
+    assert format_time(6000, "en") == "1:00.00"
+
+
+def test_format_time_over_minute_seconds_below_ten():
+    assert format_time(6600, "en") == "1:06.00"
+
+
+def test_format_time_over_minute_seconds_ten_and_up():
+    assert format_time(10613, "en") == "1:46.13"
+    assert format_time(11056, "en") == "1:50.56"
+    assert format_time(9236, "en") == "1:32.36"
+    assert format_time(8869, "en") == "1:28.69"
+    assert format_time(9626, "en") == "1:36.26"
+
+
+def test_format_time_just_below_hour():
+    assert format_time(359999, "en") == "59:59.99"
+
+
+def test_format_time_over_hour():
+    assert format_time(367013, "en") == "1:01:10.13"
+
+
 def test_format_attempts():
     snap = RoundSnapshot(attempts=(912, 888, 845, 930, 855))
     assert format_attempts(snap, "en") == "9.12, 8.88, 8.45, 9.30, 8.55"
