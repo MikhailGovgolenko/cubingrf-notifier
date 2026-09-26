@@ -12,28 +12,46 @@ from datetime import datetime, timezone
 from .models import RoundResult, RoundSnapshot
 
 
-def is_round_complete(results: list[RoundResult], roster_count: int) -> bool:
+def is_round_complete(
+    results: list[RoundResult],
+    roster_count: int = 0,
+    roster_ids: tuple[int, ...] = (),
+) -> bool:
     """The completion heuristic.
 
     The site has no per-round "finished" flag, so a round is treated as
-    finished when every rostered participant has a recorded result:
+    finished when every rostered participant has a recorded result.
 
-      1. there is a non-empty roster, and
-      2. the number of recorded results equals the roster size, and
-      3. every recorded result has at least one attempt.
+    Comparison is by identity, not by raw counts: the results table can hold
+    rows (e.g. a participant whose result was entered without a roster entry)
+    that the groups page never listed, so ``len(results) == roster_count``
+    would wait forever. When ``roster_ids`` is supplied the round completes
+    iff:
+
+      1. there is a non-empty roster,
+      2. every roster id maps to a registrant (``roster_count`` sized), and
+      3. every rostered registrant has a result row, and
+      4. every recorded result has at least one attempt.
 
     This is deliberately fail-safe: if a no-show never receives a result row
-    the counts differ and we keep waiting rather than ever notifying early.
-    The trade-off (a round may be reported slightly late if a rostered
+    the roster id stays absent and we keep waiting rather than ever notifying
+    early. The trade-off (a round may be reported slightly late if a rostered
     participant is genuinely left without a row) is accepted and documented.
+    When ``roster_ids`` is empty (unknown mapping) the legacy raw-count
+    comparison is used instead.
     """
     if roster_count <= 0:
         return False
     if not results:
         return False
-    if len(results) != roster_count:
+    if not all(bool(r.attempts) for r in results):
         return False
-    return all(bool(r.attempts) for r in results)
+    if roster_ids:
+        if len(roster_ids) != roster_count:
+            return False
+        result_ids = {r.registrant_id for r in results}
+        return all(rid in result_ids for rid in roster_ids)
+    return len(results) == roster_count
 
 
 def snapshot_for(results: list[RoundResult], registrant_id: int) -> RoundSnapshot | None:

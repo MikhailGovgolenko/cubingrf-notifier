@@ -45,6 +45,25 @@ def test_incomplete_when_rostered_participant_has_no_attempts():
     assert is_round_complete(results, roster_count=2) is False
 
 
+def test_complete_by_identity_tolerates_extra_result_rows():
+    # The results table can carry a row the groups page never listed (e.g. a
+    # result entered without a roster entry); it must not block completion.
+    results = [_res(1), _res(2), _res(3), _res(4)]
+    assert is_round_complete(results, roster_count=3, roster_ids=(1, 2, 3)) is True
+
+
+def test_incomplete_by_identity_when_rostered_id_missing():
+    results = [_res(1), _res(3)]
+    assert is_round_complete(results, roster_count=3, roster_ids=(1, 2, 3)) is False
+
+
+def test_incomplete_by_identity_when_roster_ids_not_fully_mapped():
+    # Some roster participant's id couldn't be resolved; keep waiting rather
+    # than ever notifying early.
+    results = [_res(1), _res(2), _res(3)]
+    assert is_round_complete(results, roster_count=3, roster_ids=(1, 2)) is False
+
+
 # --- snapshot_for ---
 
 def test_snapshot_for_finds_user():

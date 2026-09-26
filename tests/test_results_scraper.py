@@ -127,3 +127,12 @@ def test_parse_roster_counts_participants():
     scraper = CubingRFResultsScraper()
     roster = scraper._parse_roster(ROSTER_PAGE)
     assert roster.count == 3
+    assert roster.registrant_ids == ()
+
+
+def test_parse_roster_maps_to_registrant_ids():
+    scraper = CubingRFResultsScraper()
+    mapping = {"AS03": 49, "AG32": 50, "AK52": 99}
+    roster = scraper._parse_roster(ROSTER_PAGE, mapping=mapping)
+    assert roster.count == 3
+    assert roster.registrant_ids == (49, 50, 99)

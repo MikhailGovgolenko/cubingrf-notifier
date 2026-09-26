@@ -106,13 +106,16 @@ class CubingRFResultsScraper:
             mapping[rsf] = int(m.group(1))
         return mapping
 
-    async def get_registrant_id(self, competition_id: str, rsf_id: str) -> Optional[int]:
-        """Numeric registrant id for an RSF id in this competition, or None."""
+    async def get_registrant_mapping(self, competition_id: str) -> dict[str, int]:
+        """RSF code -> per-competition registrant id (the competitors page)."""
         html = await self._get(f"/competitions/{competition_id}/competitors")
         if html is None:
-            return None
-        mapping = self._person_paths(HTMLParser(html))
-        return mapping.get(rsf_id)
+            return {}
+        return self._person_paths(HTMLParser(html))
+
+    async def get_registrant_id(self, competition_id: str, rsf_id: str) -> Optional[int]:
+        """Numeric registrant id for an RSF id in this competition, or None."""
+        return (await self.get_registrant_mapping(competition_id)).get(rsf_id)
 
     # ----------------------------------------------------------------- rounds
 
@@ -249,7 +252,7 @@ class CubingRFResultsScraper:
 
     # ------------------------------------------------------------------- roster
 
-    def _parse_roster(self, html: str) -> RoundRoster:
+    def _parse_roster(self, html: str, mapping: Optional[dict[str, int]] = None) -> RoundRoster:
         tree = HTMLParser(html)
         # The groups page lists every participant once per group as a row that
         # links to their profile via /persons/{RSF}. Current markup renders
@@ -267,20 +270,24 @@ class CubingRFResultsScraper:
             rsf = href.rstrip("/").rsplit("/", 1)[-1]
             if rsf:
                 codes.add(rsf)
-        return RoundRoster(count=len(codes))
+        if not mapping:
+            return RoundRoster(count=len(codes))
+        ids = tuple(sorted(mapping[c] for c in codes if c in mapping))
+        return RoundRoster(registrant_ids=ids, count=len(codes))
 
     async def fetch_round_roster(
         self,
         competition_id: str,
         event: str,
         round_number: int,
+        mapping: Optional[dict[str, int]] = None,
     ) -> RoundRoster:
         html = await self._get(
             f"/competitions/{competition_id}/groups/{event}/{round_number}"
         )
         if html is None:
             return RoundRoster()
-        return self._parse_roster(html)
+        return self._parse_roster(html, mapping=mapping)
 
     # ------------------------------------------------------------- convenience
 

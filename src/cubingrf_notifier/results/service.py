@@ -21,6 +21,7 @@ from .logic import (
     hash_snapshot,
     should_poll,
 )
+from .models import RoundRoster
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,12 @@ class RoundResultService:
         # {competition_id: (event_code, round_number)} only for entries we
         # still consider "fresh enough" to poll (see ``_active_rounds``).
         self._round_cache: dict[str, list[tuple[str, int]]] = {}
-        self._roster_cache: dict[tuple[str, str, int], int] = {}
+        # {competition_id: RSF code -> registrant id}. The competitors page is
+        # fetched at most once per poll cycle per competition.
+        self._registrant_map_cache: dict[str, dict[str, int]] = {}
+        # {(competition_id, event, round): roster details}. The slow groups
+        # page isn't re-fetched every tick.
+        self._roster_cache: dict[tuple[str, str, int], RoundRoster] = {}
 
     # ------------------------------------------------------------------ poll
 
@@ -135,11 +141,20 @@ class RoundResultService:
         rsf = user.rsf_id
         if not rsf:
             return None
-        registrant_id = await self.scraper.get_registrant_id(comp.external_id, rsf)
+        mapping = await self._resolve_registrant_mapping(comp)
+        registrant_id = mapping.get(rsf)
         if registrant_id is None:
             logger.info("RSF id %s not found in competition %s", rsf, comp.external_id)
             return None
         return registrant_id
+
+    async def _resolve_registrant_mapping(self, comp) -> dict[str, int]:
+        """RSF code -> registrant id for ``comp``, cached per poll cycle."""
+        mapping = self._registrant_map_cache.get(comp.external_id)
+        if mapping is None:
+            mapping = await self.scraper.get_registrant_mapping(comp.external_id)
+            self._registrant_map_cache[comp.external_id] = mapping
+        return mapping
 
     async def _poll_round(
         self, user, comp, event_code, round_number, registrant_id, state, now, events, notifier
@@ -149,12 +164,18 @@ class RoundResultService:
         )
         roster_key = (comp.external_id, event_code, round_number)
         if roster_key not in self._roster_cache:
+            mapping = await self._resolve_registrant_mapping(comp)
             roster = await self.scraper.fetch_round_roster(
-                comp.external_id, event_code, round_number
+                comp.external_id, event_code, round_number, mapping=mapping
             )
-            self._roster_cache[roster_key] = roster.count
+            self._roster_cache[roster_key] = roster
+        roster = self._roster_cache[roster_key]
 
-        if not is_round_complete(results, self._roster_cache[roster_key]):
+        if not is_round_complete(
+            results,
+            roster_count=roster.count,
+            roster_ids=roster.registrant_ids,
+        ):
             # Not everyone has a result yet — the round isn't over. When it was
             # previously seen complete (e.g. results briefly undisclosed) we
             # don't un-notify; we simply keep polling on the normal cadence.
