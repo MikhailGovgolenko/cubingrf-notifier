@@ -64,6 +64,44 @@ def test_format_attempts_empty():
     assert format_attempts(snap, "en") is None
 
 
+def test_format_attempts_fmc_renders_move_counts():
+    snap = RoundSnapshot(attempts=(37, 38, 41))
+    assert format_attempts(snap, "en", event_code="333fm") == "37, 38, 41"
+
+
+def test_format_attempts_fmc_dnf_dns():
+    snap = RoundSnapshot(attempts=(31, -1, -2))
+    assert format_attempts(snap, "en", event_code="333fm") == "31, DNF, DNS"
+
+
+def test_format_round_result_fmc_renders_moves():
+    snap = RoundSnapshot(
+        place=1,
+        attempts=(37, 38, 41),
+        average=3867,  # mean 38.67 moves, stored fixed-point
+        best=37,
+        advanced=True,
+    )
+    text = format_round_result("Comp", None, "333fm", 1, snap, language="en")
+    assert "Attempts: 37, 38, 41" in text
+    assert "Average: 38.67" in text
+    assert "Best: 37" in text
+
+
+def test_format_round_result_fmc_dnf_average():
+    snap = RoundSnapshot(
+        place=5,
+        attempts=(31, -1, -1),
+        average=-1,
+        best=31,
+        advanced=False,
+    )
+    text = format_round_result("Comp", None, "333fm", 1, snap, language="en")
+    assert "Attempts: 31, DNF, DNF" in text
+    assert "Average: DNF" in text
+    assert "Best: 31" in text
+
+
 def test_format_round_result_new_includes_all_fields():
     snap = RoundSnapshot(
         place=3,

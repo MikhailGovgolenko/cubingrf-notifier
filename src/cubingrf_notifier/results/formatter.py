@@ -7,6 +7,33 @@ from ..i18n import get_text
 from ..competitions.disciplines import discipline_label
 from .models import RoundSnapshot
 
+# Events whose results are move counts instead of times. Fewest Moves stores
+# each attempt as the raw move count; its "average" is a fixed-point mean with
+# two decimals (37+38+41 -> "38.67"), scaled like centiseconds.
+_MOVE_COUNT_EVENTS = {"333fm"}
+
+
+def _is_move_count_event(event_code: str | None) -> bool:
+    return event_code in _MOVE_COUNT_EVENTS
+
+
+def _format_move(value: int) -> str:
+    """A single FMC value (move count): 37 -> '37', -1 -> 'DNF', -2 -> 'DNS'."""
+    if value == -1:
+        return "DNF"
+    if value == -2:
+        return "DNS"
+    return str(value)
+
+
+def _format_move_fixed(value: int) -> str:
+    """FMC fixed-point value (2 dp): 3867 -> '38.67'; -1 -> 'DNF'."""
+    if value == -1:
+        return "DNF"
+    if value == -2:
+        return "DNS"
+    return f"{value / 100:.2f}"
+
 
 def format_time(centis: int | None, language: str = "ru") -> str:
     """Centiseconds -> '13.45'; 'M:SS.CC' once at least a minute long.
@@ -32,10 +59,14 @@ def format_time(centis: int | None, language: str = "ru") -> str:
     return f"{seconds}.{remaining:02d}"
 
 
-def format_attempts(snapshot: RoundSnapshot, language: str = "ru") -> str | None:
+def format_attempts(
+    snapshot: RoundSnapshot, language: str = "ru", event_code: str | None = None
+) -> str | None:
     """Attempts joined with commas, e.g. '9.12, 8.88, 8.45, 9.30, 8.55'."""
     if not snapshot.attempts:
         return None
+    if _is_move_count_event(event_code):
+        return ", ".join(_format_move(t) for t in snapshot.attempts)
     return ", ".join(format_time(t, language) for t in snapshot.attempts)
 
 
@@ -84,14 +115,21 @@ def format_round_result(
 
     # Attempts and the average/best share one block (single <br/> between).
     detail_lines: list[str] = []
-    attempts = format_attempts(snapshot, language)
+    attempts = format_attempts(snapshot, language, event_code=event_code)
     if attempts:
         detail_lines.append(get_text(language, "results.attempts", attempts=attempts))
+    moves = _is_move_count_event(event_code)
     info: list[str] = []
     if snapshot.average is not None:
-        info.append(get_text(language, "results.average", time=format_time(snapshot.average, language)))
+        avg_text = (
+            _format_move_fixed(snapshot.average) if moves else format_time(snapshot.average, language)
+        )
+        info.append(get_text(language, "results.average", time=avg_text))
     if snapshot.best is not None:
-        info.append(get_text(language, "results.best", time=format_time(snapshot.best, language)))
+        best_text = (
+            _format_move(snapshot.best) if moves else format_time(snapshot.best, language)
+        )
+        info.append(get_text(language, "results.best", time=best_text))
     if info:
         detail_lines.append(" • ".join(info))
     if detail_lines:
