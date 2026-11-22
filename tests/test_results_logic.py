@@ -2,7 +2,9 @@ from datetime import datetime, timedelta, timezone
 
 from cubingrf_notifier.results.models import RoundResult, RoundSnapshot
 from cubingrf_notifier.results.logic import (
+    has_entered_results,
     is_round_complete,
+    rounds_before,
     snapshot_for,
     hash_snapshot,
     should_poll,
@@ -64,6 +66,32 @@ def test_incomplete_by_identity_when_roster_ids_not_fully_mapped():
     assert is_round_complete(results, roster_count=3, roster_ids=(1, 2)) is False
 
 
+# --- has_entered_results ---
+
+def test_has_entered_results_ignores_placeholder_rows():
+    placeholder = RoundResult(registrant_id=1, place=0, attempts=())
+    assert has_entered_results([placeholder]) is False
+    assert has_entered_results([placeholder, _res(2)]) is True
+
+
+# --- rounds_before ---
+
+def test_rounds_before_returns_all_earlier_schedule_entries():
+    schedule = [("333", 1), ("222", 1), ("333", 2), ("444", 1)]
+    assert rounds_before(schedule, ("333", 2)) == frozenset(
+        {("333", 1), ("222", 1)}
+    )
+
+
+def test_rounds_before_first_round_is_empty():
+    assert rounds_before([("333", 1), ("333", 2)], ("333", 1)) == frozenset()
+
+
+def test_rounds_before_unknown_round_is_empty():
+    # Fail-safe: a stale schedule must not make us guess completion order.
+    assert rounds_before([("333", 1), ("333", 2)], ("555", 1)) == frozenset()
+
+
 # --- snapshot_for ---
 
 def test_snapshot_for_finds_user():
@@ -80,6 +108,19 @@ def test_snapshot_for_finds_user():
 def test_snapshot_for_returns_none_when_user_absent():
     results = [_res(1)]
     assert snapshot_for(results, 999) is None
+
+
+def test_snapshot_for_ignores_placeholder_row():
+    placeholder = RoundResult(registrant_id=2, place=0, attempts=())
+    assert snapshot_for([placeholder], 2) is None
+
+
+def test_snapshot_for_prefers_entered_row_over_placeholder():
+    placeholder = RoundResult(registrant_id=2, place=0, attempts=())
+    entered = _res(2, place=1, attempts=(9, 9, 9, 9, 9), average=9, best=9)
+    snap = snapshot_for([placeholder, entered], 2)
+    assert snap is not None
+    assert snap.attempts == (9, 9, 9, 9, 9)
 
 
 # --- hash_snapshot ---

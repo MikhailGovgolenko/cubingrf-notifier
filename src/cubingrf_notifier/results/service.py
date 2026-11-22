@@ -16,10 +16,13 @@ from ..database.repository import (
 )
 from .cubingrf import CubingRFResultsScraper
 from .logic import (
+    has_entered_results,
     is_round_complete,
+    rounds_before,
     snapshot_for,
     hash_snapshot,
     should_poll,
+    RoundPair,
 )
 from .models import RoundRoster
 
@@ -62,6 +65,8 @@ class RoundResultService:
         # {(competition_id, event, round): roster details}. The slow groups
         # page isn't re-fetched every tick.
         self._roster_cache: dict[tuple[str, str, int], RoundRoster] = {}
+        # {external_id: scheduled (event, round) pairs in chronological order}.
+        self._schedule_cache: dict[str, list[RoundPair]] = {}
 
     # ------------------------------------------------------------------ poll
 
@@ -108,10 +113,12 @@ class RoundResultService:
             return
         external_id = comp.external_id
 
-        # Ensure we know which (event, round) combos exist for this comp.
+        # Walk rounds in schedule order when the competition publishes a
+        # schedule; fall back to the unsorted results-page picker otherwise.
+        schedule = await self._schedule(external_id)
         if external_id not in self._round_cache:
-            pairs = await self.scraper.get_round_pairs(external_id)
-            self._round_cache[external_id] = pairs
+            self._round_cache[external_id] = await self.scraper.get_round_pairs(external_id)
+        pairs = schedule or self._round_cache[external_id]
 
         # The registrant id for the user in this competition, resolved once.
         registrant_id = await self._resolve_registrant_id(user, comp)
@@ -119,7 +126,7 @@ class RoundResultService:
             # The user isn't a participant here; skip without a state row.
             return
 
-        for event_code, round_number in self._round_cache[external_id]:
+        for event_code, round_number in pairs:
             state = await self.rrs_repo.get_or_create_state(
                 user.id, competition_id, event_code, round_number
             )
@@ -132,9 +139,16 @@ class RoundResultService:
             ):
                 continue
             await self._poll_round(
-                user, comp, event_code, round_number, registrant_id, state, now, events, notifier
+                user, comp, event_code, round_number, registrant_id, state, now,
+                events, notifier, schedule=schedule,
             )
             state.last_checked_at = now
+
+    async def _schedule(self, external_id: str) -> list[RoundPair]:
+        """Chronological schedule pairs for a competition, cached per poll."""
+        if external_id not in self._schedule_cache:
+            self._schedule_cache[external_id] = await self.scraper.get_schedule(external_id)
+        return self._schedule_cache[external_id]
 
     async def _resolve_registrant_id(self, user, comp) -> Optional[int]:
         """The user's registrant id for ``comp``, or None when not set/participating."""
@@ -157,28 +171,40 @@ class RoundResultService:
         return mapping
 
     async def _poll_round(
-        self, user, comp, event_code, round_number, registrant_id, state, now, events, notifier
+        self, user, comp, event_code, round_number, registrant_id, state, now,
+        events, notifier, *, schedule: list[RoundPair] | None = None,
     ) -> None:
         results = await self.scraper.fetch_round_results(
             comp.external_id, event_code, round_number
         )
-        roster_key = (comp.external_id, event_code, round_number)
-        if roster_key not in self._roster_cache:
-            mapping = await self._resolve_registrant_mapping(comp)
-            roster = await self.scraper.fetch_round_roster(
-                comp.external_id, event_code, round_number, mapping=mapping
-            )
-            self._roster_cache[roster_key] = roster
-        roster = self._roster_cache[roster_key]
 
-        if not is_round_complete(
-            results,
-            roster_count=roster.count,
-            roster_ids=roster.registrant_ids,
-        ):
-            # Not everyone has a result yet — the round isn't over. When it was
-            # previously seen complete (e.g. results briefly undisclosed) we
-            # don't un-notify; we simply keep polling on the normal cadence.
+        # First entered result of a round proves every earlier scheduled round
+        # is done, even if their result rows are still incomplete. Placeholder
+        # rows (no attempts) don't count as entered results.
+        if has_entered_results(results) and schedule:
+            await self._mark_previous_complete(
+                user, comp, schedule, (event_code, round_number), now
+            )
+
+        complete = state.completed
+        if not complete:
+            roster_key = (comp.external_id, event_code, round_number)
+            if roster_key not in self._roster_cache:
+                mapping = await self._resolve_registrant_mapping(comp)
+                roster = await self.scraper.fetch_round_roster(
+                    comp.external_id, event_code, round_number, mapping=mapping
+                )
+                self._roster_cache[roster_key] = roster
+            roster = self._roster_cache[roster_key]
+            complete = is_round_complete(
+                results,
+                roster_count=roster.count,
+                roster_ids=roster.registrant_ids,
+            )
+
+        if not complete:
+            # Not everyone has a result yet and the schedule gave no proof of
+            # completion — keep waiting.
             return
 
         snapshot = snapshot_for(results, registrant_id)
@@ -202,6 +228,25 @@ class RoundResultService:
             await self._notify(user, comp, event_code, round_number, snapshot, edited=True, events=events, notifier=notifier)
             state.result_hash = digest
             events.append(f"edited:{event_code}/{round_number}")
+
+    async def _mark_previous_complete(
+        self, user, comp, schedule: list[RoundPair], pair: RoundPair, now
+    ) -> None:
+        """Mark rounds scheduled before ``pair`` as completed.
+
+        Once any result appears for ``pair``, earlier schedule entries are
+        known to be over. Notifications for them are sent by the normal
+        polling path: their state becomes ``completed`` here, and on the next
+        tick (or later in this one, if not yet visited) they are processed
+        with their own snapshot.
+        """
+        for event_code, round_number in rounds_before(schedule, pair):
+            state = await self.rrs_repo.get_or_create_state(
+                user.id, comp.id, event_code, round_number
+            )
+            if not state.completed:
+                state.completed = True
+                state.completed_at = now
 
     async def _notify(
         self, user, comp, event_code, round_number, snapshot, *, edited, events, notifier

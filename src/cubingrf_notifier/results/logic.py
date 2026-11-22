@@ -8,8 +8,11 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import datetime, timezone
+from typing import Sequence
 
 from .models import RoundResult, RoundSnapshot
+
+RoundPair = tuple[str, int]
 
 
 def is_round_complete(
@@ -54,10 +57,42 @@ def is_round_complete(
     return len(results) == roster_count
 
 
+def has_entered_results(results: list[RoundResult]) -> bool:
+    """True when at least one row has an actual attempt entered.
+
+    The site publishes placeholder rows for every rostered participant as soon
+    as a round starts. They carry no attempts (``data-raw-result="0"`` cells),
+    so a non-empty results list alone is not proof that anything was entered.
+    Only a row with real attempts counts as the "first entered result" that
+    proves earlier scheduled rounds are finished.
+    """
+    return any(bool(r.attempts) for r in results)
+
+
+def rounds_before(
+    schedule: Sequence[RoundPair],
+    round_pair: RoundPair,
+) -> frozenset[RoundPair]:
+    """Rounds listed strictly before ``round_pair`` in the schedule.
+
+    The first entered result of a round proves that every round scheduled
+    earlier has finished, even if the site hasn't published all of their
+    result rows yet. This is the schedule-based completion heuristic.
+
+    Fail-safe: if the round isn't in the schedule (stale/partial schedule), we
+    don't guess what came before it and return an empty set.
+    """
+    try:
+        idx = schedule.index(round_pair)
+    except ValueError:
+        return frozenset()
+    return frozenset(schedule[:idx])
+
+
 def snapshot_for(results: list[RoundResult], registrant_id: int) -> RoundSnapshot | None:
-    """The user's own round snapshot, or None when they have no result row."""
+    """The user's own entered result, or None while only a placeholder exists."""
     for r in results:
-        if r.registrant_id == registrant_id:
+        if r.registrant_id == registrant_id and r.attempts:
             return RoundSnapshot(
                 place=r.place,
                 attempts=r.attempts,
@@ -101,6 +136,8 @@ def should_poll(
     backoff = _backoff_seconds(now, completed_at, base_interval)
     if last_checked_at is None:
         return True
+    if last_checked_at.tzinfo is None:
+        last_checked_at = last_checked_at.replace(tzinfo=timezone.utc)
     age = (now - last_checked_at).total_seconds()
     return age >= backoff
 

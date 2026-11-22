@@ -136,3 +136,79 @@ def test_parse_roster_maps_to_registrant_ids():
     roster = scraper._parse_roster(ROSTER_PAGE, mapping=mapping)
     assert roster.count == 3
     assert roster.registrant_ids == (49, 50, 99)
+
+
+SCHEDULE_PAGE = """
+<html><body>
+<div id="tabs-rounds">
+  <div data-event="333" data-round="1"><h4>1-й раунд</h4></div>
+  <div data-event="333" data-round="2"><h4>Финал</h4></div>
+  <div data-event="222" data-round="1"><h4>1-й раунд</h4></div>
+  <div data-event="333fm" data-round="1"><h4>Финал</h4></div>
+</div>
+<div id="tabs-schedule">
+  <h3>Воскресенье, 22 ноября</h3>
+  <div class="border border-gray-300 p-3 rounded">
+    <div class="text-sm font-bold">09:30 — 10:30</div>
+    <div class="text-lg font-bold">3x3x3, 1-й раунд</div>
+    <a class="text-gray-700 underline" href="https://cubingrf.org/competitions/X/results/333/1">Результаты</a>
+    <a class="text-gray-700 underline" href="https://cubingrf.org/competitions/X/groups/333/1">Группы</a>
+  </div>
+  <div class="border border-gray-300 p-3 rounded">
+    <div class="text-sm font-bold">10:40 — 10:50</div>
+    <div class="text-lg font-bold">Инструктаж</div>
+  </div>
+  <div class="border border-gray-300 p-3 rounded">
+    <div class="text-sm font-bold">11:40 — 12:40</div>
+    <div class="text-lg font-bold">Мегаминкс, 1-й раунд</div>
+    <a class="text-gray-700 underline" href="https://cubingrf.org/competitions/X/results/minx/1">Результаты</a>
+  </div>
+  <div class="border border-gray-300 p-3 rounded">
+    <div class="text-sm font-bold">14:40 — 15:50</div>
+    <div class="text-lg font-bold">Square-1, 1-й раунд</div>
+    <a class="text-gray-700 underline" href="https://cubingrf.org/competitions/X/results/sq1/1">Результаты</a>
+    <a class="text-gray-700 underline" href="https://cubingrf.org/competitions/X/results/sq1/1">Ещё раз</a>
+  </div>
+  <div class="border border-gray-300 p-3 rounded">
+    <div class="text-sm font-bold">16:00 — 16:30</div>
+    <i class="cubing-icon event-333"></i>
+    <div class="text-lg font-bold">Кубик 3x3x3, Финал</div>
+  </div>
+  <div class="border border-gray-300 p-3 rounded">
+    <div class="text-sm font-bold">16:00 — 17:00</div>
+    <div class="text-lg font-bold">Рекорды</div>
+    <a href="https://cubingrf.org/competitions/X/results/333/psychSheet">Предварительный рейтинг</a>
+  </div>
+  <h3>Воскресенье, 22 ноября</h3>
+  <div class="border border-gray-300 p-3 rounded">
+    <div class="text-sm font-bold">10:00 — 11:00</div>
+    <div class="text-lg font-bold">2x2x2, 1-й раунд</div>
+    <a href="https://cubingrf.org/competitions/X/results/222/1">Результаты</a>
+  </div>
+  <div class="border border-gray-300 p-3 rounded">
+    <div class="text-sm font-bold">08:30 — 09:00</div>
+    <i class="cubing-icon event-333fm"></i>
+    <div class="text-lg font-bold">3x3x3 на количество ходов, Финал</div>
+  </div>
+</div>
+</body></html>
+"""
+
+
+def test_parse_schedule_sorts_parallel_halls_by_start_time():
+    scraper = CubingRFResultsScraper()
+    # DOM order is hall 1 (09:30 … 16:00) then hall 2 (10:00, 08:30), but the
+    # schedule order must be chronological across both halls.
+    assert scraper._parse_schedule(SCHEDULE_PAGE) == [
+        ("333fm", 1),
+        ("333", 1),
+        ("222", 1),
+        ("minx", 1),
+        ("sq1", 1),
+        ("333", 2),
+    ]
+
+
+def test_parse_schedule_missing_tab_returns_empty():
+    scraper = CubingRFResultsScraper()
+    assert scraper._parse_schedule("<html><body></body></html>") == []

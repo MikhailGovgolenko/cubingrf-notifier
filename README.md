@@ -75,7 +75,7 @@ The RSF ID is used only to identify the user's results. **No verification is req
 
 ### Round result notifications:
 
-When results for a competition round have been entered for all participants, the bot can notify users that the round results are available.
+The bot can notify users when a round's results become available. A round is considered finished either when all rostered participants have a result, or — earlier — when a result first appears for any round scheduled after it (the competition schedule proves earlier rounds are over). This also makes notifications arrive in schedule order even if some result rows are entered late.
 
 If results for the round are edited afterwards, the bot can also send an updated notification.
 

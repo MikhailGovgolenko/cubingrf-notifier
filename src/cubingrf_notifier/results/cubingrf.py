@@ -162,6 +162,127 @@ class CubingRFResultsScraper:
             return []
         return self._round_links(HTMLParser(html))
 
+    # --------------------------------------------------------------- schedule
+
+    @staticmethod
+    def _round_name_from_heading(text: str) -> str | None:
+        """'Кубик 3x3x3, Полуфинал' -> 'Полуфинал'."""
+        if "," not in text:
+            return None
+        name = text.split(",", 1)[1].strip()
+        return name or None
+
+    _MONTHS_RU = {
+        "января": 1, "февраля": 2, "марта": 3, "апреля": 4, "мая": 5, "июня": 6,
+        "июля": 7, "августа": 8, "сентября": 9, "октября": 10, "ноября": 11,
+        "декабря": 12,
+    }
+
+    @classmethod
+    def _schedule_day_key(cls, heading: str) -> tuple[int, int]:
+        """'Воскресенье, 22 ноября' -> (11, 22), for sorting across days."""
+        m = re.search(r"(\d{1,2})\s+([а-яё]+)", heading.lower())
+        if m is None:
+            return (0, 0)
+        return (cls._MONTHS_RU.get(m.group(2), 0), int(m.group(1)))
+
+    @staticmethod
+    def _schedule_time_key(card: Node) -> tuple[int, int]:
+        """Start time of a schedule card, e.g. '14:50 — 15:10' -> (14, 50)."""
+        el = card.css_first("div.text-sm.font-bold")
+        m = re.search(r"(\d{1,2}):(\d{2})", (el.text() or "") if el else "")
+        if m is None:
+            return (99, 99)
+        return (int(m.group(1)), int(m.group(2)))
+
+    def _parse_schedule(self, html: str) -> list[Tuple[str, int]]:
+        """Scheduled rounds in chronological order across all parallel halls.
+
+        The "Расписание" tab on ``/competitions/{id}`` is laid out as several
+        parallel halls, each a column with its own day headings and time slots.
+        DOM order therefore groups a whole hall together — it is NOT global
+        chronology. Cards are sorted by their printed start time (and day)
+        instead, because only that makes "rounds before X" meaningful.
+
+        A card may carry a ``/results/{event}/{round}`` link — that's the
+        simplest source. But rounds whose results aren't published yet have no
+        link; they only show an ``event-{code}`` icon and a heading like
+        "Кубик 3x3x3, Полуфинал". To resolve those we use the "Список раундов"
+        tab, which maps ``(event, round name)`` to a round number.
+
+        Unknown/unscheduled entries (breaks, unofficial events) are skipped.
+        An empty result means no usable schedule; callers then fall back to
+        the unsorted round list from the results page.
+        """
+        tree = HTMLParser(html)
+        tab = tree.css_first("#tabs-schedule")
+        if tab is None:
+            return []
+
+        # (event code, round name) -> round number, from the rounds tab.
+        names: dict[Tuple[str, str], int] = {}
+        rounds_tab = tree.css_first("#tabs-rounds")
+        if rounds_tab is not None:
+            for card in rounds_tab.css("[data-event][data-round]"):
+                event = card.attributes.get("data-event", "")
+                heading = card.css_first("h4")
+                name = heading.text().strip() if heading is not None else ""
+                try:
+                    number = int(card.attributes.get("data-round", ""))
+                except ValueError:
+                    continue
+                if event and name:
+                    names[(event, name)] = number
+
+        candidates: list[tuple[tuple[int, ...], Tuple[str, int]]] = []
+        day_key: tuple[int, int] = (0, 0)
+        dom_index = 0
+        for el in tab.css("h3, div.border.border-gray-300.p-3.rounded"):
+            if el.tag == "h3":
+                day_key = self._schedule_day_key(el.text() or "")
+                continue
+
+            link = el.css_first('a[href*="/results/"]')
+            pair: Tuple[str, int] | None = None
+            if link is not None:
+                href = link.attributes.get("href", "")
+                m = re.search(r"/results/([^/?]+)/(\d+)(?:[?/]|$)", href)
+                if m is not None:
+                    pair = (m.group(1), int(m.group(2)))
+            if pair is None:
+                icon = el.css_first("i.cubing-icon")
+                heading = el.css_first("div.text-lg.font-bold")
+                if icon is None or heading is None:
+                    continue
+                m = re.search(r"\bevent-([^\s]+)", icon.attributes.get("class", "") or "")
+                name = self._round_name_from_heading(heading.text() or "")
+                if m is None or name is None:
+                    continue
+                number = names.get((m.group(1), name))
+                if number is not None:
+                    pair = (m.group(1), number)
+            if pair is not None:
+                key = day_key + self._schedule_time_key(el) + (dom_index,)
+                candidates.append((key, pair))
+            dom_index += 1
+
+        # Earliest slot wins when a round is listed more than once.
+        candidates.sort(key=lambda item: item[0])
+        pairs: list[Tuple[str, int]] = []
+        seen: set[Tuple[str, int]] = set()
+        for _, pair in candidates:
+            if pair not in seen:
+                seen.add(pair)
+                pairs.append(pair)
+        return pairs
+
+    async def get_schedule(self, competition_id: str) -> list[Tuple[str, int]]:
+        """Scheduled rounds in chronological order, or [] if unavailable."""
+        html = await self._get(f"/competitions/{competition_id}")
+        if html is None:
+            return []
+        return self._parse_schedule(html)
+
     # ------------------------------------------------------------------ results
 
     def _parse_results(self, html: str) -> list[RoundResult]:
